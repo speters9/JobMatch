@@ -17,7 +17,7 @@ The JobMatch project provides a flexible and modular approach to solving individ
 |
 ├── data               <- Repository for raw matching preferences (not included here)
 |
-├── docs               <- A default mkdocs project; see www.mkdocs.org for details
+├── docs               <- Mkdocs for sphinx-generated documentation
 │
 ├── models             <- Trained and serialized models, model predictions, or model summaries (None included yet)
 │
