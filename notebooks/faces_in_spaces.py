@@ -47,6 +47,8 @@ set_all_seeds(94305)
 
 # Create a solver factory
 factory = JobMatch(individuals, course_slots, instructor_max)
+
+
 # Solve using the bipartite matching approach
 print("Test on real preferences: Bipartite graph\n")
 matches_bipartite = factory.solve(method='bipartite_matching', instructor_weighted=True)
