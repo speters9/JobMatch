@@ -6,69 +6,63 @@ Putting faces in spaces
 
 ## Overview
 
-The JobMatch project provides a flexible and modular approach to solving course assignment problems using various optimization strategies, including stable marriage, bipartite graph matching, and linear programming. It is designed to match instructors to courses based on their preferences, course capacities, and other potential constraints. By a process of iterative matching, each algorithm is structured to allow for matching to more than one assignment per instructor.
+The JobMatch project provides a flexible and modular approach to solving individual and job assignment problems using various optimization strategies, including stable marriage, bipartite graph matching, and linear programming. It is designed to match instructors to courses based on their preferences, course capacities, and other potential constraints. By a process of iterative matching, each algorithm is structured to allow for matching to more than one assignment per instructor.
 
 
 ## Project Organization
 
 ```
 ├── LICENSE            <- Open-source license if one is chosen
-├── Makefile           <- Makefile with convenience commands like `make data` or `make train`
 ├── README.md          <- The top-level README for developers using this project.
-├── data
-│   ├── external       <- Data from third party sources.
-│   ├── interim        <- Intermediate data that has been transformed.
-│   ├── processed      <- The final, canonical data sets for modeling.
-│   └── raw            <- The original, immutable data dump.
-│
+|
+├── data               <- Repository for raw matching preferences (not included here)
+|
 ├── docs               <- A default mkdocs project; see www.mkdocs.org for details
 │
-├── models             <- Trained and serialized models, model predictions, or model summaries
+├── models             <- Trained and serialized models, model predictions, or model summaries (None included yet)
 │
-├── notebooks          <- Jupyter notebooks. Naming convention is a number (for ordering),
-│                         the creator's initials, and a short `-` delimited description, e.g.
-│                         `1.0-jqp-initial-data-exploration`.
-│
-├── pyproject.toml     <- Project configuration file with package metadata for 
-│                         jobmatch and configuration for tools like black
-│
-├── references         <- Data dictionaries, manuals, and all other explanatory materials.
-│
-├── reports            <- Generated analysis as HTML, PDF, LaTeX, etc.
-│   └── figures        <- Generated graphics and figures to be used in reporting
-│
-├── requirements.txt   <- The requirements file for reproducing the analysis environment, e.g.
-│                         generated with `pip freeze > requirements.txt`
-│
-├── setup.cfg          <- Configuration file for flake8
+├── notebooks          <- Includes base implementation.
 │
 └── jobmatch   <- Source code for use in this project.
     │
     ├── __init__.py             <- Makes jobmatch a Python module
     │
-    ├── config.py               <- Store useful variables and configuration
+    ├── JobMatch.py             <- Factory implementation of JobMatch class, a factory for calling the various algorithms.
     │
-    ├── dataset.py              <- Scripts to download or generate data
+    ├── bipartite_graph_match.py               <- Code for bipartite matching
     │
-    ├── features.py             <- Code to create features for modeling
+    ├── linear_program_optimization.py         <- Code for matching via linear program optimization
     │
-    ├── modeling                
-    │   ├── __init__.py 
-    │   ├── predict.py          <- Code to run model inference with trained models          
-    │   └── train.py            <- Code to train models
+    ├── stable_marriage.py      <- Code for matching using stable marriage
     │
-    └── plots.py                <- Code to create visualizations
+    ├── preprocessing.py        <- Code for parsing input preferences and preprocessing for passing to the matching algorithms
+    |
+    └── global_functions.py     <- Code with general utility functions
+
 ```
 
 --------
 ## Key Components
 
 - **JobMatch Class**: The core class that integrates the different solving methods (stable marriage, bipartite matching, linear programming) and provides a unified interface for running the course assignment process.
-- **Stable Marriage Solver**: Implements the stable marriage algorithm to ensure no instructor-course pair would prefer to be assigned to each other over their current assignment.
-- **Bipartite Matching Solver**: Uses bipartite graph matching to optimally assign instructors to courses based on preferences, with optional weighting for instructor seniority.
-- **Linear Programming Solver**: Applies linear programming techniques to solve the course assignment problem, offering different methods including default, perturbation, and multi-objective optimization.
+
+- **Iterative Bipartite Matching & Iterative Linear Programming:**
+    - These algorithms optimize for instructor preferences while iteratively matching instructors with courses.
+    - Greedy matching is employed, where if an instructor is matched with a section, the algorithm will attempt to assign additional sections of the same course until the instructor's maximum sections or course capacity is reached.
+    - The algorithms iterate through all instructors and courses until no more matches can be made, leading to convergence.
+  
+- **Modified Stable Marriage Algorithm:**
+    - This version of the stable marriage algorithm sequentially matches instructors to courses based on their preferences.
+    - The algorithm ensures that:
+        - No instructor is assigned more than two unique courses.
+        - Instructors are greedily assigned to additional sections of a course they are already teaching, as long as their maximum sections or course capacity is not exceeded.
+        - The process iterates until no more matches can be made, either because all instructors have been fully assigned or all course capacities are exhausted.
+    - Unlike traditional stable marriage, this version supports sequential and greedy matching, allowing for multiple sections of the same course to be assigned to an instructor.
+        - Instructors propose to their preferred courses sequentially, and courses can "reject" instructors if they have reached capacity or if another instructor with a higher preference has already been assigned.
+        - The process continues iteratively until all instructors are assigned within the constraints.
+  
 - **Preprocessing**: Functions for standardizing and parsing input data, ensuring consistency across the various solving methods.
 
 ## Usage
 
-To use the `JobMatch` class, initialize it with the list of instructors and their preferences, along with the course capacities. You can then choose from one of the supported methods (`stable_marriage`, `bipartite_matching`, `linear_programming`) to solve the assignment problem.
+To use the `JobMatch` class, initialize it with the list of instructors and their preferences, along with the course capacities. You can then choose from one of the supported methods (`stable_marriage`, `bipartite_matching`, `linear_programming`) to solve the assignment problem. Dependencies are managed by poetry, so `poetry install` with `pyproject.toml` file should get you going.
