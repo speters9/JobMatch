@@ -6,6 +6,7 @@ import networkx as nx
 
 # %%
 
+
 def build_network(individuals: Dict[str, List[str]], courses: Dict[str, int], instructor_weighted: bool = False) -> nx.Graph:
     """Build a bipartite graph with adjusted weights for instructor rank and course preferences.
 

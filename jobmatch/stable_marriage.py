@@ -76,6 +76,7 @@ from typing import Dict, List, Optional, Tuple
 
 #     return instructor_assignments, course_assignments
 
+
 def stable_marriage_solver(instructor_preferences: Dict[str, List[Tuple[str, int]]],
                            course_capacities: Dict[str, int],
                            instructor_max: Dict[str, int]) -> Tuple[Dict[str, List[str]], Dict[str, List[str]]]:
