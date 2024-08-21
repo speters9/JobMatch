@@ -196,30 +196,6 @@ class JobMatch:
 
         return match_ranks
 
-    # def get_match_ranks(self, matches: Dict[str, List[str]]) -> Dict[str, List[Tuple[str, int]]]:
-    #     """Calculate and return the matched courses and their ranks for each instructor.
-
-    #     Args:
-    #         matches (Dict[str, List[str]]): A dictionary mapping instructors to their assigned courses.
-
-    #     Returns:
-    #         Dict[str, List[Tuple[str, int]]]: A dictionary mapping instructors to a list of tuples,
-    #             each containing a course and its rank.
-    #     """
-    #     match_ranks = {}
-    #     for instructor, courses in sorted(matches.items()):
-    #         ranked_courses = []
-    #         for course in courses:
-    #             # Get the rank of the matched course according to the instructor's preferences
-    #             if self.preferences_with_ranks and instructor in self.preferences_with_ranks:
-    #                 pref_dict = {pref.course: pref.rank for pref in self.preferences_with_ranks[instructor]}
-    #                 rank = pref_dict.get(course, len(self.course_slots))
-    #             else:
-    #                 rank = len(self.course_slots)  # Default to a low rank if not found
-    #             ranked_courses.append((course, rank))
-    #         match_ranks[instructor] = ranked_courses
-    #     return match_ranks
-
     def print_match_results(self, match_ranks: Dict[str, Tuple[List[str], List[int]]]):
         """Print the matching results in the desired format."""
         for instructor, (courses, ranks) in sorted(match_ranks.items()):
@@ -234,8 +210,8 @@ if __name__ == "__main__":
     import pandas as pd
     from pyprojroot.here import here
 
-    from jobmatch.class_data import (course_id_map, course_map, course_slots,
-                                     instructor_max)
+    from jobmatch.class_data import (core_dict, course_id_map, course_map,
+                                     course_slots, instructor_max)
     from jobmatch.global_functions import set_all_seeds
     wd = here()
 
@@ -245,12 +221,6 @@ if __name__ == "__main__":
     pref_df = pd.read_excel(wd / "data/raw/Teaching_Preferences_cao18Aug.xlsx")
     pref_df = pref_df.set_index('Name')
     pref_df = pref_df.reindex(instructor_max.keys()).reset_index()
-
-    # convert class identifiers from form format to standard format
-    core_dict = {
-        'PolSci 211': 'PS211',
-        'SocSci 311': 'SocSci311',
-    }
 
     # get individual preferences from free response, add in core preferences last, if not included
     individuals = {}

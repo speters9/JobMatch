@@ -64,42 +64,7 @@ def build_network(individuals: Dict[str, List[str]], courses: Dict[str, int], in
     return G
 
 
-# def bipartite_matching_solver(individuals: Dict[str, List[str]],
-#                               courses: Dict[str, int],
-#                               instructor_weighted: bool = False) -> Tuple[Dict[str, str], Dict[str, int], nx.Graph]:
-#     """Perform maximum weight matching on the bipartite graph and return matches with their ranks.
 
-#     Args:
-#         individuals (Dict[str, List[str]]): A dictionary of instructors and their course preferences.
-#         courses (Dict[str, int]): A dictionary of courses and their respective capacities.
-#         weighted (bool): Whether to incorporate instructor rank into the edge weights. Defaults to False.
-
-#     Returns:
-#         Tuple[Dict[str, Optional[str]], Dict[str, List[str]], nx.Graph]:
-#             A tuple containing three items:
-#             - The first dictionary maps each instructor to their assigned course (or None if not assigned).
-#             - The second dictionary maps each course to a list of assigned instructors.
-#             - The third is the resulting graph object
-#     """
-#     # Build the network
-#     G = build_network(individuals, courses, instructor_weighted)
-
-#     # Perform maximum weight matching
-#     matching = nx.algorithms.matching.max_weight_matching(G, maxcardinality=True)
-
-#     instructor_assignments = {}
-#     course_assignments = {course: [] for course in courses}
-
-#     for instructor, course in matching:
-#         if instructor in individuals:
-#             assigned_course = course
-#         else:
-#             instructor, assigned_course = course, instructor
-
-#         instructor_assignments[instructor] = assigned_course.split('_')[0]
-#         course_assignments[assigned_course.split('_')[0]].append(instructor)
-
-#     return instructor_assignments, course_assignments, G
 def iterative_bipartite_matching_solver(individuals: Dict[str, List[str]],
                                         courses: Dict[str, int],
                                         instructor_max_full: Dict[str, int],
@@ -189,8 +154,8 @@ if __name__ == "__main__":
     import pandas as pd
     from pyprojroot.here import here
 
-    from jobmatch.class_data import (course_id_map, course_map, course_slots,
-                                     instructor_max)
+    from jobmatch.class_data import (core_dict, course_id_map, course_map,
+                                     course_slots, instructor_max)
     from jobmatch.preprocessing import (create_preference_tuples,
                                         parse_preferences,
                                         print_matching_results)
@@ -200,12 +165,6 @@ if __name__ == "__main__":
     pref_df = pd.read_excel(wd / "data/raw/Teaching_Preferences_cao18Aug.xlsx")
     pref_df = pref_df.set_index('Name')
     pref_df = pref_df.reindex(instructor_max.keys()).reset_index()
-
-    # convert class identifiers from form format to standard format
-    core_dict = {
-        'PolSci 211': 'PS211',
-        'SocSci 311': 'SocSci311',
-    }
 
     # get individual preferences from free response, add in core preferences last, if not included
     individuals = {}

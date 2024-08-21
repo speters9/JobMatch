@@ -9,76 +9,6 @@ import pulp
 # %%
 
 
-# def linear_programming_solver(instructor_preferences: Dict[str, List[namedtuple]],
-#                               course_capacities: Dict[str, int],
-#                               method: str = 'default') -> List[Tuple[str, str, str]]:
-#     """Solve the course matching problem using linear programming.
-
-#     Args:
-#         instructor_preferences (Dict[str, List[namedtuple]]): A dictionary of instructors and their ranked preferences.
-#         course_capacities (Dict[str, int]): A dictionary of courses and their respective capacities.
-#         method (str): The method for solving the problem ('default', 'perturb', 'multi_objective'). Defaults to 'default'.
-#     Returns:
-#         Tuple[Dict[str, Optional[str]], Dict[str, List[str]]]:
-#             A tuple containing two dictionaries:
-#             - The first dictionary maps each instructor to their assigned course (or None if not assigned).
-#             - The second dictionary maps each course to a list of assigned instructors.
-#     """
-#     prob = pulp.LpProblem("Course_Assignment", pulp.LpMaximize)
-
-#     instructors = list(instructor_preferences.keys())
-#     courses = list(set(pref.course for prefs in instructor_preferences.values() for pref in prefs))
-
-#     choices = pulp.LpVariable.dicts("Choice",
-#                                     ((i, c) for i in instructors for c in courses),
-#                                     cat='Binary')
-
-#     max_rank = max(pref.rank for prefs in instructor_preferences.values() for pref in prefs)
-
-#     if method == 'default':
-#         # Standard formulation
-#         prob += pulp.lpSum(choices[i, pref.course] * (max_rank + 1 - pref.rank)
-#                            for i in instructors
-#                            for pref in instructor_preferences[i])
-#     elif method == 'perturb':
-#         # Add small random perturbations
-#         prob += pulp.lpSum(choices[i, pref.course] * (max_rank + 1 - pref.rank + random.uniform(0, 0.001))
-#                            for i in instructors
-#                            for pref in instructor_preferences[i])
-#     elif method == 'multi_objective':
-#         # Define a large weight for the primary objective to dominate
-#         PRIMARY_WEIGHT = 1000
-#         # Define a smaller weight for the secondary objective as a tiebreaker - instructor seniority
-#         SECONDARY_WEIGHT = 1
-
-#         # Combine the objectives
-#         prob += (PRIMARY_WEIGHT * pulp.lpSum(choices[i, pref.course] * (max_rank + 1 - pref.rank)
-#                                              for i in instructors
-#                                              for pref in instructor_preferences[i]) +
-#                  SECONDARY_WEIGHT * pulp.lpSum(choices[i, c] * (len(instructors) - instructors.index(i))
-#                                                for i in instructors for c in courses))
-
-#     # Constraints
-#     for i in instructors:
-#         prob += pulp.lpSum(choices[i, c] for c in courses) <= 1
-#     for c in courses:
-#         prob += pulp.lpSum(choices[i, c] for i in instructors) <= course_capacities.get(c, 0)
-
-#     # solve the problem: PULP_CBC_CMD is the verbosity command
-#     prob.solve(pulp.PULP_CBC_CMD(msg=False))
-
-#     # Create the result with preference rankings
-#     instructor_assignments = {}
-#     course_assignments = {course: [] for course in course_capacities}
-
-#     for i in instructors:
-#         for c in courses:
-#             if pulp.value(choices[i, c]) == 1:
-#                 instructor_assignments[i] = c
-#                 course_assignments[c].append(i)
-
-#     return instructor_assignments, course_assignments
-
 
 def iterative_linear_programming_solver(instructor_preferences: Dict[str, List[namedtuple]],
                                         course_capacities: Dict[str, int],
@@ -177,8 +107,8 @@ if __name__ == "__main__":
     from nameparser import HumanName
     from pyprojroot.here import here
 
-    from jobmatch.class_data import (course_id_map, course_map, course_slots,
-                                     instructor_max)
+    from jobmatch.class_data import (core_dict, course_id_map, course_map,
+                                     course_slots, instructor_max)
     from jobmatch.preprocessing import (create_preference_tuples,
                                         parse_preferences,
                                         print_matching_results)
@@ -188,12 +118,6 @@ if __name__ == "__main__":
     pref_df = pd.read_excel(wd / "data/raw/Teaching_Preferences_cao18Aug.xlsx")
     pref_df = pref_df.set_index('Name')
     pref_df = pref_df.reindex(instructor_max.keys()).reset_index()
-
-    # convert class identifiers from form format to standard format
-    core_dict = {
-        'PolSci 211': 'PS211',
-        'SocSci 311': 'SocSci311',
-    }
 
     # get individual preferences from free response, add in core preferences last, if not included
     individuals = {}

@@ -173,3 +173,4 @@ cython_debug/
 references/
 reports/
 jobmatch/class_data.py
+**/archive/

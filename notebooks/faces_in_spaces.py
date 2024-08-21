@@ -4,8 +4,8 @@ import pandas as pd
 # set wd
 from pyprojroot.here import here
 
-from jobmatch.class_data import (course_id_map, course_map, course_slots,
-                                 instructor_max)
+from jobmatch.class_data import (core_dict, course_id_map, course_map,
+                                 course_slots, instructor_max)
 from jobmatch.global_functions import set_all_seeds
 from jobmatch.JobMatch import JobMatch
 from jobmatch.preprocessing import parse_preferences
@@ -20,11 +20,7 @@ pref_df = pref_df.reindex(instructor_max.keys()).reset_index()
 
 
 # %%
-# convert class identifiers from form format to standard format
-core_dict = {
-    'PolSci 211': 'PS211',
-    'SocSci 311': 'SocSci311',
-}
+
 
 # get individual preferences from free response, add in core preferences last, if not included
 individuals = {}
