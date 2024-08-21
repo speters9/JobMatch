@@ -62,12 +62,12 @@ The JobMatch project provides a flexible and modular approach to solving individ
 
 ## Usage
 
-To use the `JobMatch` class, initialize it with a user-provided:
+- To use the `JobMatch` class, initialize it with a user-provided:
      - Dict of instructors and their list of preferences, 
      - A dict of instructors and their maximum section load, and 
      - A dict of courses and their respective number of sections available.
          - A full pipeline includes importing a csv of raw text preferences, and then converting to the above `Dict[str, list]` (in the `preprocessing` module); but those can be manually input to bypass a step.
 
-You can then choose from one of the supported methods (`stable_marriage`, `bipartite_matching`, `linear_programming`) to solve the assignment problem. 
+- You can then choose from one of the supported methods (`stable_marriage`, `bipartite_matching`, `linear_programming`) to solve the assignment problem. 
 
-Dependencies are managed by poetry, so `poetry install` with `pyproject.toml` file should get you going.
+- Dependencies are managed by poetry, so `poetry install` with `pyproject.toml` file should get you going.
