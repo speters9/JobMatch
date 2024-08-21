@@ -10,7 +10,7 @@ The JobMatch project provides a flexible and modular approach to solving individ
 ## Project Organization
 
 ```
-├── LICENSE            <- Open-source license if one is chosen
+├── LICENSE            <- Open-source license
 ├── README.md          <- The top-level README for developers using this project.
 |
 ├── data               <- Repository for raw matching preferences (not included here)
@@ -21,9 +21,7 @@ The JobMatch project provides a flexible and modular approach to solving individ
 │
 ├── notebooks          <- Includes base implementation.
 │
-└── jobmatch   <- Source code for use in this project.
-    │
-    ├── __init__.py             <- Makes jobmatch a Python module
+└── jobmatch           <- Source code for use in this project.
     │
     ├── JobMatch.py             <- Factory implementation of JobMatch class, a factory for calling the various algorithms.
     │
@@ -47,6 +45,7 @@ The JobMatch project provides a flexible and modular approach to solving individ
 - **Iterative Bipartite Matching & Iterative Linear Programming:**
     - These algorithms optimize for instructor preferences while iteratively matching instructors with courses.
     - Greedy matching is employed, where if an instructor is matched with a section, the algorithm will attempt to assign additional sections of the same course until the instructor's maximum sections or course capacity is reached.
+    - No instructor is assigned more than two unique courses.
     - The algorithms iterate through all instructors and courses until no more matches can be made, leading to convergence.
   
 - **Modified Stable Marriage Algorithm:**
