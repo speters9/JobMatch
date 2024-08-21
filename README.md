@@ -66,7 +66,7 @@ The JobMatch project provides a flexible and modular approach to solving individ
      - Dict of instructors and their list of preferences, 
      - A dict of instructors and their maximum section load, and 
      - A dict of courses and their respective number of sections available.
-         - A full pipeline includes importing a csv of raw text preferences, and then converting to the above `Dict[str, list]` (in the `preprocessing` module); but those can be manually input to bypass a step.
+         - A full pipeline includes importing a csv of raw text preferences, and then converting to the above `Dict[str, list]` of instructor preferences (in the `preprocessing` module); but those can be manually input to bypass a step.
 
 - You can then choose from one of the supported methods (`stable_marriage`, `bipartite_matching`, `linear_programming`) to solve the assignment problem. 
 
