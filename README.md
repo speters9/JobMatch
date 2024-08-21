@@ -2,8 +2,6 @@
 
 [![CCDS Project template](https://img.shields.io/badge/CCDS-Project%20template-328F97?logo=cookiecutter)](https://cookiecutter-data-science.drivendata.org/)
 
-Putting faces in spaces
-
 ## Overview
 
 The JobMatch project provides a flexible and modular approach to solving individual and job assignment problems using various optimization strategies, including stable marriage, bipartite graph matching, and linear programming. It is designed to match instructors to courses based on their preferences, course capacities, and other potential constraints. By a process of iterative matching, each algorithm is structured to allow for matching to more than one assignment per instructor.
