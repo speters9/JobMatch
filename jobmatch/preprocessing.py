@@ -1,12 +1,21 @@
 import re
 from collections import namedtuple
+from dataclasses import dataclass
 from pathlib import Path
 from pprint import pprint
 from typing import Dict, List
 
+import pandas as pd
 from rapidfuzz import fuzz, process
 
+
 # %%
+@dataclass
+class Instructor:
+    name: str
+    max_classes: int
+    degree: str # 'mas' or 'phd'
+    preferences: list
 
 
 def normalize_preferences(preference_string: str) -> List[str]:

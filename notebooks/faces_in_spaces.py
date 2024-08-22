@@ -14,7 +14,7 @@ wd = here()
 
 # %%
 # load preferences df and order by instructor importance
-pref_df = pd.read_excel(wd / "data/raw/Teaching_Preferences_cao18Aug.xlsx")
+pref_df = pd.read_excel(wd / "data/raw/Teaching_Preferences_cao21Aug.xlsx")
 pref_df = pref_df.set_index('Name')
 pref_df = pref_df.reindex(instructor_max.keys()).reset_index()
 
