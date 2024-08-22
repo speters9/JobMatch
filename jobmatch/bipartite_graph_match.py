@@ -1,149 +1,126 @@
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Set, Tuple
 
 # build and plot graph
 import networkx as nx
 
+from jobmatch.dataclasses import AssignmentTracker, Course, Instructor
+
 # %%
 
 
-def build_network(individuals: Dict[str, List[str]], courses: Dict[str, int], instructor_weighted: bool = False) -> nx.Graph:
-    """Build a bipartite graph with adjusted weights for instructor rank and course preferences.
 
-    Args:
-        individuals (Dict[str, List[str]]): A dictionary of instructors and their course preferences.
-        courses (Dict[str, int]): A dictionary of courses and their respective capacities.
-        weighted (bool): Whether to incorporate instructor rank into the edge weights. Defaults to False.
-
-    Returns:
-        nx.Graph: A bipartite graph with instructors and course options as nodes, and preferences as edges.
-    """
-    # Create a bipartite graph
+def build_network(instructors: List[Instructor], courses: List[Course], instructor_weighted: bool = False) -> nx.Graph:
+    """Build a bipartite graph with adjusted weights for instructor rank and course preferences."""
     G = nx.Graph()
 
-    # Add nodes with the bipartite attribute
-    instructors = list(individuals.keys())
-    courses_list = []
+    instructor_names = [instructor.name for instructor in instructors]
+    course_names = [f"{course.name}_{i+1}" for course in courses for i in range(course.sections_available)]
 
-    # Expand courses_list to account for multiple availabilities
-    for course, availability in courses.items():
-        courses_list.extend([f"{course}_{i+1}" for i in range(availability)])
+    G.add_nodes_from(instructor_names, bipartite=0)
+    G.add_nodes_from(course_names, bipartite=1)
 
-    # Add instructor nodes
-    G.add_nodes_from(instructors, bipartite=0)
+    unlisted_rank = 1 / (len(course_names) + 1)
+    instructor_ranks = {instructor.name: idx + 1 for idx, instructor in enumerate(instructors)}
 
-    # Add course nodes (with expanded availability)
-    G.add_nodes_from(courses_list, bipartite=1)
-
-    # Define the penalty rank for courses not listed in preferences
-    unlisted_rank = 1/(len(courses_list) + 1)
-
-    # Determine instructor rank: assume earlier in list is more important
-    instructor_ranks = {instructor: i + 1 for i, instructor in enumerate(instructors)}
-
-    # Add edges with weights corresponding to preference rankings
-    for instructor, preferences in individuals.items():
-        # pull instructor ranking
-        instructor_rank = instructor_ranks[instructor]
-        for course in courses_list:
-            course_base = course.split('_')[0]  # Extract the base course name
-            if course_base in preferences:
-                preference_rank = 1/(preferences.index(course_base) + 1)
+    for instructor in instructors:
+        # skip empty instructors
+        if not instructor.preferences:
+            continue
+        instructor_rank = instructor_ranks[instructor.name]
+        for course_name in course_names:
+            course_base = course_name.split('_')[0]
+            if course_base in instructor.preferences:
+                preference_rank = 1 / (instructor.preferences.index(course_base) + 1)
             else:
-                preference_rank = unlisted_rank  # Assign constant but low rank for unlisted courses
+                preference_rank = unlisted_rank
 
+            rank = preference_rank
             if instructor_weighted:
-                # Combine preference rank and instructor rank into a single weight
-                rank = preference_rank + 0.1*(1 / instructor_rank)  # Preference dominates, but instructor rank breaks ties
-            else:
-                # Basic preference rank without instructor weight
-                rank = preference_rank
-            # Lower rank means higher preference, so weight is inverse of rank
-            G.add_edge(instructor, course, weight=rank)
+                rank = preference_rank + (1 / instructor_rank)
+
+            G.add_edge(instructor.name, course_name, weight=rank)
 
     return G
 
 
 
-def iterative_bipartite_matching_solver(individuals: Dict[str, List[str]],
-                                        courses: Dict[str, int],
-                                        instructor_max_full: Dict[str, int],
-                                        instructor_weighted: bool = False) -> Tuple[Dict[str, List[str]], Dict[str, List[str]], List[nx.Graph]]:
-    """
-    Perform greedy bipartite matching to assign instructors to multiple courses,
-    ensuring no instructor teaches more than two different courses.
 
-    Args:
-        individuals (Dict[str, List[str]]): A dictionary of instructors and their course preferences.
-        courses (Dict[str, int]): A dictionary of courses and their respective capacities.
-        instructor_max_full (Dict[str, int]): A dictionary mapping full instructor names to their maximum allowed classes.
-        instructor_weighted (bool): Whether to incorporate instructor rank into the edge weights. Defaults to False.
-
-    Returns:
-        Tuple[Dict[str, List[str]], Dict[str, List[str]], List[nx.Graph]]:
-            A tuple containing three items:
-            - The first dictionary maps each instructor to their list of assigned courses.
-            - The second dictionary maps each course to a list of assigned instructors.
-            - The third is a list of graphs generated during the matching iterations.
-    """
-    # Step 1: Initialize assignment tracking
-    instructor_assignments = {instructor: [] for instructor in individuals.keys()}
-    course_assignments = {course: [] for course in courses}
-    instructor_course_counts = {instructor: 0 for instructor in individuals.keys()}
-    instructor_unique_courses = {instructor: set() for instructor in individuals.keys()}
+def iterative_bipartite_matching_solver(instructors: List[Instructor], courses: List[Course], instructor_weighted: bool = False, verbose: bool = False) -> Tuple[List[Instructor], List[Course], List[nx.Graph]]:
+    trackers = {instructor.name: AssignmentTracker(instructor=instructor) for instructor in instructors}
     graphs = []
     iter_count = 0
 
-    # Step 2: Iterate until no more assignments can be made
     while True:
         iter_count += 1
-        # Build the network
-        G = build_network(individuals, courses, instructor_weighted)
-        graphs.append(G)  # Store the current graph
+        if verbose:
+            print(f"\n--- Iteration {iter_count} ---")
 
-        # Perform maximum weight matching
+        # Filter out instructors who have reached their max classes or max unique courses
+        eligible_instructors = [
+            tracker.instructor for tracker in trackers.values()
+            if tracker.course_count < tracker.instructor.max_classes and len(tracker.unique_courses) < 2
+        ]
+
+        # Filter out courses that are already fully assigned
+        eligible_courses = [course for course in courses if course.sections_available > 0]
+
+        if not eligible_instructors or not eligible_courses:
+            print(f"All instructors or courses are exhausted after iteration {iter_count}. Ending loop.")
+            break
+
+        # Build the network with eligible instructors and available courses
+        G = build_network(eligible_instructors, eligible_courses, instructor_weighted)
+        graphs.append(G)
+
         matching = nx.algorithms.matching.max_weight_matching(G, maxcardinality=True)
 
-        # Track if we made any assignments in this iteration
+        if verbose:
+            print(f"Matching in this iteration: {matching}")
+
         assignments_made = False
 
-        # Process the matching to assign courses
-        for instructor, course in matching:
-            if instructor in individuals:
-                assigned_course = course
+        for instructor_name, course_name in matching:
+            if instructor_name in trackers:
+                tracker = trackers[instructor_name]
+                course = next(crs for crs in courses if crs.name == course_name.split('_')[0])
             else:
-                instructor, assigned_course = course, instructor
+                tracker = trackers[course_name]
+                course = next(crs for crs in courses if crs.name == instructor_name.split('_')[0])
 
-            course_base = assigned_course.split('_')[0]
+            course_base = course.name
 
-            # Calculate how many sections can be assigned to the instructor
-            available_slots = min(instructor_max_full[instructor] - instructor_course_counts[instructor], courses[course_base])
+            if verbose:
+                print(f"Trying to assign {tracker.instructor.name} to {course_base}...")
 
-            # Check if the instructor can still be assigned more courses and if they already teach fewer than 2 different courses
-            if available_slots > 0 and len(instructor_unique_courses[instructor]) < 2:
-                # Assign as many sections of the course as possible to the instructor
-                instructor_assignments[instructor].extend([course_base] * available_slots)
-                course_assignments[course_base].extend([instructor] * available_slots)
-                instructor_course_counts[instructor] += available_slots
-                instructor_unique_courses[instructor].add(course_base)
-                courses[course_base] -= available_slots  # Reduce the number of available slots for this course
-                assignments_made = True
+            if tracker.can_assign(course_base):
+                available_slots = min(tracker.instructor.max_classes - tracker.course_count, course.sections_available)
 
-        # Break the loop if no assignments were made in this iteration
+                if available_slots > 0:
+                    if verbose:
+                        print(f"Assigning {tracker.instructor.name} to {course_base} ({available_slots} slots)...")
+                    tracker.assign_course(course_base, available_slots)
+                    course.assigned_instructors.extend([tracker.instructor.name] * available_slots)
+                    course.sections_available -= available_slots
+                    assignments_made = True
+                else:
+                    if verbose:
+                        print(f"No available slots for {tracker.instructor.name} in {course_base}.")
+            else:
+                if verbose:
+                    print(f"{tracker.instructor.name} cannot be assigned to {course_base} (Max classes: {tracker.instructor.max_classes}, Current: {tracker.course_count}, Unique courses: {len(tracker.unique_courses)}).")
+
         if not assignments_made:
-            print(f"Convergence after {iter_count} iterations")
+            print(f"No assignments made in iteration {iter_count}. Ending loop.")
             break
 
-        # Remove fully assigned instructors and empty courses
-        individuals = {inst: prefs for inst, prefs in individuals.items() if instructor_course_counts[inst] < instructor_max_full[inst]}
-        courses = {course: capacity for course, capacity in courses.items() if capacity > 0}
+    # Transfer assignments from trackers to instructor objects
+    for tracker in trackers.values():
+        tracker.instructor.assigned_courses.extend(tracker.assigned_courses)
+        tracker.instructor.unique_courses.update(tracker.unique_courses)
 
-        # If there are no more instructors or courses to assign, end the loop
-        if not individuals or not courses:
-            print(f"Convergence after {iter_count} iterations")
-            break
-
-    return instructor_assignments, course_assignments, graphs
+    return instructors, courses, graphs
 
 
 # %%
@@ -156,37 +133,47 @@ if __name__ == "__main__":
 
     from jobmatch.class_data import (core_dict, course_id_map, course_map,
                                      course_slots, instructor_max)
-    from jobmatch.preprocessing import (create_preference_tuples,
+    from jobmatch.preprocessing import (build_courses, build_instructors,
+                                        create_preference_tuples,
                                         parse_preferences,
                                         print_matching_results)
     wd = here()
 
     # load preferences df and order by instructor importance
-    pref_df = pd.read_excel(wd / "data/raw/Teaching_Preferences_cao18Aug.xlsx")
+    pref_df = pd.read_excel(wd/ "data/raw/Teaching_Preferences_cao21Aug.xlsx")
     pref_df = pref_df.set_index('Name')
     pref_df = pref_df.reindex(instructor_max.keys()).reset_index()
+
+    course_df = pd.read_csv(wd / "data/raw/course_data.csv")
+    inst_df = pd.read_csv(wd / "data/raw/instructor_info.csv")
 
     # get individual preferences from free response, add in core preferences last, if not included
     individuals = {}
     for item in pref_df.itertuples():
         name = item[1]
-        core_class = core_dict.get(item[6], 'SocSci311')
+        core_class = core_dict.get(item[6], 'PS211')
         prefs = item[7]
         if not pd.isna(prefs):
             individuals[name] = parse_preferences(prefs, course_id_map, course_map, core_class)
         else:
             continue
 
-    all_courses = list(course_id_map.values())
-    preferences_with_ranks = create_preference_tuples(individuals, all_courses)
+    instructor_list = build_instructors(inst_df,individuals)
+    course_list = build_courses(course_df)
 
-    # Example usage
-    print("Test on real preferences:\n")
-    instructor_assignments, course_assignments, G = iterative_bipartite_matching_solver(
-        individuals, course_slots, instructor_max, instructor_weighted=True)
 
-    match_ranks = print_matching_results(instructor_assignments, individuals)
+    # Solve using bipartite matching
+    final_instructors, final_courses, G = iterative_bipartite_matching_solver(instructor_list, course_list, instructor_weighted=False)
 
+    print("\nInstructor assignments")
+    # Print instructor assignments and ranks
+    for instructor in final_instructors:
+        instructor.print_assignments(skip_none=False)
+
+    print("\nCourse assignments")
+    # Print course assignments
+    for course in final_courses:
+        course.print_assignments()
     # %%
 
     def visualize_network(G):

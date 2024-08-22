@@ -1,68 +1,77 @@
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+
+from jobmatch.dataclasses import AssignmentTracker, Course, Instructor
 
 # %%
 
 
-def stable_marriage_solver(instructor_preferences: Dict[str, List[Tuple[str, int]]],
-                           course_capacities: Dict[str, int],
-                           instructor_max: Dict[str, int]) -> Tuple[Dict[str, List[str]], Dict[str, List[str]]]:
+
+def stable_marriage_solver(instructors: List[Instructor],
+                           courses: List[Course]) -> Tuple[List[Instructor], List[Course]]:
     """Solve the matching problem using a modified stable marriage algorithm with sequential matching.
 
     Args:
-        instructor_preferences (Dict[str, List[Tuple[str, int]]]):
-            A dictionary where keys are instructor names and values are lists of tuples.
-            Each tuple contains a course name and a rank indicating the instructor's preference for that course.
-        course_capacities (Dict[str, int]):
-            A dictionary where keys are course names and values are the number of available slots for each course.
-        instructor_max (Dict[str, int]):
-            A dictionary where keys are instructor last names and values are the maximum number of classes they can teach.
+        instructors (List[Instructor]): A list of Instructor objects.
+        courses (List[Course]): A list of Course objects.
 
     Returns:
-        Tuple[Dict[str, List[str]], Dict[str, List[str]]]:
-            A tuple containing two dictionaries:
-            - The first dictionary maps each instructor to their assigned courses.
-            - The second dictionary maps each course to a list of assigned instructors.
+        Tuple[List[Instructor], List[Course]]:
+            A tuple containing the updated list of Instructor objects with their assigned courses,
+            and the updated list of Course objects with their assigned instructors.
     """
-    # Create dictionaries to track the proposals and assignments
-    course_assignments = {course: [] for course in course_capacities}
-    instructor_assignments = {instructor: [] for instructor in instructor_preferences}
+    # Initialize trackers for each instructor
+    trackers = {instructor.name: AssignmentTracker(instructor=instructor) for instructor in instructors}
 
     # Create a dictionary to track the current proposals for each instructor
-    current_proposals = {instructor: 0 for instructor in instructor_preferences}
+    current_proposals = {instructor.name: 0 for instructor in instructors}
 
     # Create a list to track free instructors (those not yet assigned or fully assigned)
-    free_instructors = list(instructor_preferences.keys())
+    free_instructors = list(trackers.keys())
     iter_count = 0
 
     while free_instructors:
         iter_count += 1
-        instructor = free_instructors.pop(0)  # Get the first free instructor
+        instructor_name = free_instructors.pop(0)  # Get the first free instructor
+        tracker = trackers[instructor_name]  # Get the corresponding tracker
 
-        # Check if the instructor has reached their maximum number of classes
-        if len(instructor_assignments[instructor]) < instructor_max.get(instructor, 2):  # Default to 2 if not found
-            if current_proposals[instructor] < len(instructor_preferences[instructor]):
+        # Skip if preferences are None or empty
+        if not tracker.instructor.preferences:
+            continue
+
+        # Ensure the instructor hasn't reached their maximum number of classes
+        if tracker.course_count < tracker.instructor.max_classes:
+            if current_proposals[instructor_name] < len(tracker.instructor.preferences):
                 # The instructor proposes to their next preferred course
-                preferred_course = instructor_preferences[instructor][current_proposals[instructor]].course
+                preferred_course_name = tracker.instructor.preferences[current_proposals[instructor_name]]
+                try:
+                    course = next(crs for crs in courses if crs.name == preferred_course_name)
+                except StopIteration:
+                    print(f"Course not found: {preferred_course_name}")
+                    raise KeyError(f"Course not found: {preferred_course_name}.\nPlease ensure correct naming conventions")
 
-                # Check if the instructor is already teaching two different courses
-                if len(set(instructor_assignments[instructor])) < 2 or preferred_course in instructor_assignments[instructor]:
-                    while len(course_assignments[preferred_course]) < course_capacities[preferred_course]:
-                        # Assign the instructor to this course
-                        course_assignments[preferred_course].append(instructor)
-                        instructor_assignments[instructor].append(preferred_course)
-
-                        # Check if the instructor has reached their max number of classes
-                        if len(instructor_assignments[instructor]) >= instructor_max.get(instructor, 1):
-                            break
+                if tracker.can_assign(preferred_course_name):
+                    available_slots = min(tracker.instructor.max_classes - tracker.course_count, course.sections_available)
+                    if available_slots > 0:
+                        tracker.assign_course(preferred_course_name, available_slots)
+                        course.assigned_instructors.extend([tracker.instructor.name] * available_slots)
+                        course.sections_available -= available_slots
 
                 # Move to the next preference if the instructor still needs assignments
-                if len(instructor_assignments[instructor]) < instructor_max.get(instructor, 1):
-                    current_proposals[instructor] += 1
-                    free_instructors.append(instructor)
+                if tracker.course_count < tracker.instructor.max_classes:
+                    current_proposals[instructor_name] += 1
+                    free_instructors.append(instructor_name)
+
+    # Transfer assignments from trackers to instructors
+    for tracker in trackers.values():
+        tracker.instructor.assigned_courses.extend(tracker.assigned_courses)
+        tracker.instructor.unique_courses.update(tracker.unique_courses)
 
     print(f"Convergence after {iter_count} iterations")
-    return instructor_assignments, course_assignments
+    return instructors, courses
+
+
 
 # %%
 
@@ -71,37 +80,48 @@ if __name__ == "__main__":
     from pprint import pprint
 
     import pandas as pd
-    from nameparser import HumanName
     from pyprojroot.here import here
 
     from jobmatch.class_data import (core_dict, course_id_map, course_map,
                                      course_slots, instructor_max)
-    from jobmatch.preprocessing import (create_preference_tuples,
+    from jobmatch.preprocessing import (build_courses, build_instructors,
+                                        create_preference_tuples,
                                         parse_preferences,
                                         print_matching_results)
     wd = here()
 
     # load preferences df and order by instructor importance
-    pref_df = pd.read_excel(wd / "data/raw/Teaching_Preferences_cao18Aug.xlsx")
+    pref_df = pd.read_excel(wd/ "data/raw/Teaching_Preferences_cao21Aug.xlsx")
     pref_df = pref_df.set_index('Name')
     pref_df = pref_df.reindex(instructor_max.keys()).reset_index()
+
+    course_df = pd.read_csv(wd / "data/raw/course_data.csv")
+    inst_df = pd.read_csv(wd / "data/raw/instructor_info.csv")
 
     # get individual preferences from free response, add in core preferences last, if not included
     individuals = {}
     for item in pref_df.itertuples():
         name = item[1]
-        core_class = core_dict.get(item[6], 'SocSci311')
+        core_class = core_dict.get(item[6], 'PS211')
         prefs = item[7]
         if not pd.isna(prefs):
             individuals[name] = parse_preferences(prefs, course_id_map, course_map, core_class)
         else:
             continue
 
-    all_courses = list(course_id_map.values())
-    preferences_with_ranks = create_preference_tuples(individuals, all_courses)
+    instructor_list = build_instructors(inst_df,individuals)
+    course_list = build_courses(course_df)
 
-    print("Test on real preferences:\n")
-    instructor_assignments, course_assignments = stable_marriage_solver(preferences_with_ranks, course_slots, instructor_max)
-    # pprint(instructor_assignments)
 
-    match_ranks = print_matching_results(instructor_assignments, individuals)
+    # Solve using bipartite matching
+    final_instructors, final_courses = stable_marriage_solver(instructor_list, course_list)
+
+    print("\nInstructor assignments")
+    # Print instructor assignments and ranks
+    for instructor in final_instructors:
+        instructor.print_assignments(skip_none=True)
+
+    print("\nCourse assignments")
+    # Print course assignments
+    for course in final_courses:
+        course.print_assignments()

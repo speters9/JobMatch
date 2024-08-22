@@ -4,6 +4,7 @@ from typing import Callable, Dict, List, Optional, Tuple
 import networkx as nx
 
 from jobmatch.bipartite_graph_match import iterative_bipartite_matching_solver
+from jobmatch.dataclasses import Course, Instructor
 from jobmatch.linear_program_optimization import \
     iterative_linear_programming_solver
 from jobmatch.preprocessing import create_preference_tuples, parse_preferences
@@ -13,7 +14,7 @@ from jobmatch.stable_marriage import stable_marriage_solver
 
 
 class JobMatch:
-    def __init__(self, individuals: Dict[str, List[str]], course_slots: Dict[str, int], instructor_max: Dict[str, int]):
+    def __init__(self, instructors: List[Instructor], courses: List[Course]):
         """Initialize the JobMatch class with individuals, course slots, and instructor maximum sections.
 
         Args:
@@ -56,14 +57,15 @@ class JobMatch:
         The order of instructors in the `individuals` dictionary impacts their priority in course selection,
             with those listed earlier being given higher priority.
         """
-        self.individuals = individuals
-        self.course_slots = course_slots
-        self.instructor_max = instructor_max
+        self.instructors = instructors
+        self.courses = courses
 
     def rank_order_preferences(self):
-        """Standard method to parse preferences, expand courses, etc."""
-        # Example parsing steps (add more as needed)
-        self.preferences_with_ranks = create_preference_tuples(self.individuals, list(self.course_slots.keys()))
+        """Generate preference tuples for instructors."""
+        self.preferences_with_ranks = {
+            instructor.name: create_preference_tuples([instructor], self.courses)[instructor.name]
+            for instructor in self.instructors
+        }
 
     def select_solver(self, method: str) -> Callable:
         """Select the appropriate solver method based on the specified strategy.
@@ -93,11 +95,10 @@ class JobMatch:
                 - The second dictionary maps each course to a list of assigned instructors.
         """
         # copy class attributes to avoid leakage if values are modified
-        prefs = copy.deepcopy(self.preferences_with_ranks)
-        slots = copy.deepcopy(self.course_slots)
-        inst_max = copy.deepcopy(self.instructor_max)
+        instructors = copy.deepcopy(self.instructors)
+        courses = copy.deepcopy(self.courses)
         # Call the stable marriage solution logic
-        return stable_marriage_solver(prefs, slots, inst_max)
+        return stable_marriage_solver(instructors, courses)
 
     def iterative_bipartite_matching_solver(self, instructor_weighted: bool = False) -> Tuple[Dict[str, str], Dict[str, int], nx.Graph]:
         """Solve the matching problem using the bipartite matching algorithm.
@@ -114,11 +115,11 @@ class JobMatch:
                 - The bipartite graph used in the matching.
         """
         # copy class attributes to avoid leakage if values are modified
-        inds = copy.deepcopy(self.individuals)
-        slots = copy.deepcopy(self.course_slots)
-        inst_max = copy.deepcopy(self.instructor_max)
-        # Call the bipartite matching solution logic
-        return iterative_bipartite_matching_solver(inds, slots, inst_max, instructor_weighted=instructor_weighted)
+        instructors = copy.deepcopy(self.instructors)
+        courses = copy.deepcopy(self.courses)
+
+        # Call the stable marriage solution logic
+        return iterative_bipartite_matching_solver(instructors, courses, instructor_weighted=instructor_weighted)
 
     def iterative_linear_programming_solver(self, lp_method: str = 'default') -> Tuple[Dict[str, str], Dict[str, int]]:
         """Solve the matching problem using linear programming.
@@ -134,11 +135,11 @@ class JobMatch:
                 - The second dictionary maps each course to a list of assigned instructors.
         """
         # copy class attributes to avoid leakage if values are modified
-        prefs = copy.deepcopy(self.preferences_with_ranks)
-        slots = copy.deepcopy(self.course_slots)
-        inst_max = copy.deepcopy(self.instructor_max)
+        instructors = copy.deepcopy(self.instructors)
+        courses = copy.deepcopy(self.courses)
+
         # Call the linear programming solution logic
-        return iterative_linear_programming_solver(prefs, slots, inst_max, method=lp_method)
+        return iterative_linear_programming_solver(instructors, courses, method=lp_method)
 
     def solve(self, method: str, **kwargs) -> Tuple:
         """Main entry point for solving the matching problem with the selected method.
@@ -161,45 +162,45 @@ class JobMatch:
         result = solver(**kwargs)
 
         # Calculate and store match ranks
-        self.match_ranks = self.get_match_ranks(result[0])
+        #self.match_ranks = self.print_match_results(result[0])
 
         return result
 
-    def get_match_ranks(self, matches: Dict[str, List[str]]) -> Dict[str, Tuple[List[str], List[int]]]:
-        """Calculate and return the matched courses and their ranks for each instructor.
+    # def get_match_ranks(self, matches: Dict[str, List[str]]) -> Dict[str, Tuple[List[str], List[int]]]:
+    #     """Calculate and return the matched courses and their ranks for each instructor.
 
-        Args:
-            matches (Dict[str, List[str]]): A dictionary mapping instructors to their assigned courses.
+    #     Args:
+    #         matches (Dict[str, List[str]]): A dictionary mapping instructors to their assigned courses.
 
-        Returns:
-            Dict[str, Tuple[List[str], List[int]]]: A dictionary mapping instructors to a tuple,
-                where the first element is a list of courses and the second is a list of corresponding ranks.
-        """
-        match_ranks = {}
+    #     Returns:
+    #         Dict[str, Tuple[List[str], List[int]]]: A dictionary mapping instructors to a tuple,
+    #             where the first element is a list of courses and the second is a list of corresponding ranks.
+    #     """
+    #     match_ranks = {}
 
-        for instructor, courses in sorted(matches.items()):
-            ranked_courses = []
-            ranks = []
+    #     for instructor, courses in sorted(matches.items()):
+    #         ranked_courses = []
+    #         ranks = []
 
-            for course in courses:
-                # Get the rank of the matched course according to the instructor's preferences
-                if self.preferences_with_ranks and instructor in self.preferences_with_ranks:
-                    pref_dict = {pref.course: pref.rank for pref in self.preferences_with_ranks[instructor]}
-                    rank = pref_dict.get(course, len(self.course_slots))
-                else:
-                    rank = len(self.course_slots)  # Default to a low rank if not found
+    #         for course in courses:
+    #             # Get the rank of the matched course according to the instructor's preferences
+    #             if self.preferences_with_ranks and instructor in self.preferences_with_ranks:
+    #                 pref_dict = {pref.course: pref.rank for pref in self.preferences_with_ranks[instructor]}
+    #                 rank = pref_dict.get(course, len(self.course_slots))
+    #             else:
+    #                 rank = len(self.course_slots)  # Default to a low rank if not found
 
-                ranked_courses.append(course)
-                ranks.append(rank)
+    #             ranked_courses.append(course)
+    #             ranks.append(rank)
 
-            match_ranks[instructor] = (ranked_courses, ranks)
+    #         match_ranks[instructor] = (ranked_courses, ranks)
 
-        return match_ranks
+    #     return match_ranks
 
-    def print_match_results(self, match_ranks: Dict[str, Tuple[List[str], List[int]]]):
-        """Print the matching results in the desired format."""
-        for instructor, (courses, ranks) in sorted(match_ranks.items()):
-            print(f"{instructor}: {courses} (Ranks: {ranks})")
+    def print_match_results(self, results):
+        """Print the matching results using the Instructor's print method."""
+        for instructor in sorted(results, key=lambda x: x.name):
+            instructor.print_assignments()
 
 
 # %%
@@ -212,47 +213,57 @@ if __name__ == "__main__":
 
     from jobmatch.class_data import (core_dict, course_id_map, course_map,
                                      course_slots, instructor_max)
-    from jobmatch.global_functions import set_all_seeds
+    from jobmatch.preprocessing import (build_courses, build_instructors,
+                                        create_preference_tuples,
+                                        parse_preferences,
+                                        print_matching_results)
     wd = here()
 
-    set_all_seeds(80920)
-
     # load preferences df and order by instructor importance
-    pref_df = pd.read_excel(wd / "data/raw/Teaching_Preferences_cao18Aug.xlsx")
+    pref_df = pd.read_excel(wd/ "data/raw/Teaching_Preferences_cao21Aug.xlsx")
     pref_df = pref_df.set_index('Name')
     pref_df = pref_df.reindex(instructor_max.keys()).reset_index()
+
+    course_df = pd.read_csv(wd / "data/raw/course_data.csv")
+    inst_df = pd.read_csv(wd / "data/raw/instructor_info.csv")
 
     # get individual preferences from free response, add in core preferences last, if not included
     individuals = {}
     for item in pref_df.itertuples():
         name = item[1]
-        core_class = core_dict.get(item[6], 'SocSci211')
+        core_class = core_dict.get(item[6], 'PS211')
         prefs = item[7]
         if not pd.isna(prefs):
             individuals[name] = parse_preferences(prefs, course_id_map, course_map, core_class)
         else:
             continue
 
+    instructor_list = build_instructors(inst_df,individuals)
+    course_list = build_courses(course_df)
+
+
     # Create a solver factory
-    factory = JobMatch(individuals, course_slots, instructor_max)
+    factory = JobMatch(instructor_list, course_list)
 
     # Solve using the bipartite matching approach
     print("Test on real preferences: Bipartite graph\n")
-    matches_bipartite = factory.solve(method='bipartite_matching', instructor_weighted=True)
-    rankings = factory.get_match_ranks(matches_bipartite[0])  # bipartite returns a tuple of (instructor:class, instructor:rank, nx.Graph)
-    factory.print_match_results(rankings)
+    matches_bipartite = factory.solve(method='bipartite_matching', instructor_weighted=False)
+    # bipartite returns a tuple of (instructor:class, instructor:rank, nx.Graph)
+    factory.print_match_results(matches_bipartite[0])
+    factory.print_match_results(matches_bipartite[1])
     print("")
 
     # Solve using the stable marriage approach
     print("Test on real preferences: stable marriage\n")
     matches_stable = factory.solve(method='stable_marriage')
-    rankings = factory.get_match_ranks(matches_stable[0])  # stable marriage returns a tuple of (instructor:class, class:instructor)
-    factory.print_match_results(rankings)
+    # stable marriage returns a tuple of (instructor:class, class:instructor)
+    factory.print_match_results(matches_stable[0])
+    factory.print_match_results(matches_stable[1])
     print("")
 
     # Solve using linear programming
     print("Test on real preferences: linear programming\n")
     matches_lp = factory.solve(method='linear_programming', lp_method='default')
-    rankings = factory.get_match_ranks(matches_lp[0])
-    factory.print_match_results(rankings)
+    factory.print_match_results(matches_lp[0])
+    factory.print_match_results(matches_lp[1])
     print("")

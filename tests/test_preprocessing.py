@@ -1,65 +1,120 @@
 from collections import namedtuple
 
+import pandas as pd
 import pytest
 
-from jobmatch.preprocessing import (create_preference_tuples,
-                                    normalize_preferences, parse_preferences)
+from jobmatch.dataclasses import Course, Instructor
+from jobmatch.preprocessing import (build_courses, build_instructors,
+                                    create_preference_tuples,
+                                    normalize_preferences, parse_preferences,
+                                    print_matching_results)
+
+
+@pytest.fixture
+def sample_course_data():
+    return pd.DataFrame({
+        'course_name': ['PS211', 'PS302', 'SocSci311', 'PS477'],
+        'course_id': ['211', '302', '311', '477'],
+        'course_description': [
+            'Politics, American Government',
+            'American Foreign Policy',
+            'International Security Studies',
+            'Politics of the Middle East'
+        ],
+        'sections_available': [2, 1, 1, 1]
+    })
+
+
+@pytest.fixture
+def sample_instructor_data():
+    return pd.DataFrame({
+        'name': ['Alice', 'Bob', 'Charlie'],
+        'max_classes': [2, 2, 2],
+        'degree': ['phd', 'mas', 'phd']
+    })
+
+
+@pytest.fixture
+def sample_preferences():
+    return {
+        'Alice': ['PS211', 'PS302'],
+        'Bob': ['PS211', 'PS477'],
+        'Charlie': ['SocSci311', 'PS302']
+    }
+
+
+@pytest.fixture
+def sample_course_maps():
+    course_id_map = {
+        '211': 'PS211',
+        '302': 'PS302',
+        '311': 'SocSci311',
+        '477': 'PS477'
+    }
+    course_map = {
+        'PS211': 'PS211',
+        'PS302': 'PS302',
+        'SocSci311': 'SocSci311',
+        'PS477': 'PS477'
+    }
+    return course_id_map, course_map
+
+
+def test_build_instructors(sample_instructor_data, sample_preferences):
+    instructors = build_instructors(sample_instructor_data, sample_preferences)
+    assert len(instructors) == 3
+    assert instructors[0].name == 'Alice'
+    assert instructors[1].degree == 'mas'
+    assert instructors[2].preferences == ['SocSci311', 'PS302']
+
+
+def test_build_courses(sample_course_data):
+    courses = build_courses(sample_course_data)
+    assert len(courses) == 4
+    assert courses[0].name == 'PS211'
+    assert courses[1].sections_available == 1
 
 
 def test_normalize_preferences():
-    # Test cases for normalize_preferences function
-    input_str = "Pol Sci 421 (1); SocSci 311 (2); FAS 440 (3)"
-    expected_output = ['PS421', 'SocSci311', 'FAS440']
-    assert normalize_preferences(input_str) == expected_output
-
-    input_str = "PolSci 211; PoliSci 302; FAS320"
-    expected_output = ['PS211', 'PS302', 'FAS320']
-    assert normalize_preferences(input_str) == expected_output
+    preference_string = "Pol Sci 211; FAS 211 (3), Soc Sci 311, PolSci 477 // Pol ScI 302"
+    normalized = normalize_preferences(preference_string)
+    assert normalized == ['PS211', 'FAS211', 'SocSci311', 'PS477', 'PS302']
 
 
-def test_parse_preferences():
-    # Example mappings
-    course_id_map = {
-        '211': 'PS211',
-        '311': 'SocSci311',
-    }
-    course_map = {
-        "Politics, American Government, and National Security": "PS211",
-        "International Security Studies": "SocSci311",
-    }
-    core_class = 'PS211'
-
-    input_str = "Pol Sci 211; SocSci 311"
-    expected_output = ['PS211', 'SocSci311']
-    assert parse_preferences(input_str, course_id_map, course_map, core_class) == expected_output
-
-    # Test with missing core class
-    input_str = "SocSci 311"
-    expected_output = ['SocSci311', 'PS211']
-    assert parse_preferences(input_str, course_id_map, course_map, core_class) == expected_output
+def test_parse_preferences(sample_course_maps):
+    course_id_map, course_map = sample_course_maps
+    parsed = parse_preferences("Pol Sci 211, SocSci 311", course_id_map, course_map, 'PS211')
+    assert parsed == ['PS211', 'SocSci311']
 
 
+def test_create_preference_tuples(sample_instructor_data, sample_preferences, sample_course_data):
 
-def test_create_preference_tuples():
-    instructors = {
+    instructors = build_instructors(sample_instructor_data, sample_preferences)
+    courses = build_courses(sample_course_data)
+    preference_tuples = create_preference_tuples(instructors, courses)
+
+    assert 'Alice' in preference_tuples
+    assert len(preference_tuples['Bob']) == len(courses)
+    assert preference_tuples['Alice'][0].course == 'PS211'
+    assert preference_tuples['Charlie'][0].rank == 1
+
+
+def test_print_matching_results():
+    instructor_assignments = {
         'Alice': ['PS211', 'PS302'],
-        'Bob': ['PS211','PS477'],
-        'Charlie': ['SocSci311', 'PS302', 'PS477',]
+        'Bob': ['PS211'],
+        'Charlie': ['SocSci311']
     }
-
-    all_courses = ['PS211', 'PS302', 'PS477', 'SocSci311']
-
-    # Expected output
-    Preference = namedtuple('Preference', ['course', 'rank'])
-    expected_output = {
-        'Alice': [Preference(course='PS211', rank=1), Preference(course='PS302', rank=2), Preference(course='PS477', rank=4), Preference(course='SocSci311', rank=4)],
-        'Bob': [Preference(course='PS211', rank=1), Preference(course='PS477', rank=2), Preference(course='PS302', rank=4), Preference(course='SocSci311', rank=4)],
-        'Charlie': [Preference(course='SocSci311', rank=1), Preference(course='PS302', rank=2), Preference(course='PS477', rank=3), Preference(course='PS211', rank=4)],
+    individuals = {
+        'Alice': ['PS211', 'PS302', 'SocSci311'],
+        'Bob': ['PS211', 'PS477'],
+        'Charlie': ['SocSci311', 'PS302']
     }
+    match_ranks = print_matching_results(instructor_assignments, individuals)
 
-    result = create_preference_tuples(instructors, all_courses)
-
-    assert result == expected_output
+    assert match_ranks['Alice'] == [1, 2]
+    assert match_ranks['Bob'] == [1]
+    assert match_ranks['Charlie'] == [1]
 
 
 

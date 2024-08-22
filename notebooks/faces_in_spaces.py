@@ -8,19 +8,19 @@ from jobmatch.class_data import (core_dict, course_id_map, course_map,
                                  course_slots, instructor_max)
 from jobmatch.global_functions import set_all_seeds
 from jobmatch.JobMatch import JobMatch
-from jobmatch.preprocessing import parse_preferences
+from jobmatch.preprocessing import (build_courses, build_instructors,
+                                    parse_preferences)
 
 wd = here()
 
-# %%
+#%%
 # load preferences df and order by instructor importance
-pref_df = pd.read_excel(wd / "data/raw/Teaching_Preferences_cao21Aug.xlsx")
+pref_df = pd.read_excel(wd/ "data/raw/Teaching_Preferences_cao21Aug.xlsx")
 pref_df = pref_df.set_index('Name')
 pref_df = pref_df.reindex(instructor_max.keys()).reset_index()
 
-
-# %%
-
+course_df = pd.read_csv(wd / "data/raw/course_data.csv")
+inst_df = pd.read_csv(wd / "data/raw/instructor_info.csv")
 
 # get individual preferences from free response, add in core preferences last, if not included
 individuals = {}
@@ -33,37 +33,31 @@ for item in pref_df.itertuples():
     else:
         continue
 
+instructor_list = build_instructors(inst_df,individuals)
+course_list = build_courses(course_df)
 
-pprint(individuals)
 
-
-# %%
 set_all_seeds(94305)
-# Reinitialize factory with each iteration to ensure there is no data leakage
-
+#%%
 # Create a solver factory
-factory = JobMatch(individuals, course_slots, instructor_max)
-
+factory = JobMatch(instructor_list, course_list)
 
 # Solve using the bipartite matching approach
 print("Test on real preferences: Bipartite graph\n")
-matches_bipartite = factory.solve(method='bipartite_matching', instructor_weighted=True)
-rankings = factory.get_match_ranks(matches_bipartite[0])  # bipartite returns a tuple of (instructor:class, instructor:rank, nx.Graph)
-factory.print_match_results(rankings)
+matches_bipartite = factory.solve(method='bipartite_matching', instructor_weighted=False)
+# bipartite returns a tuple of (instructor:class, instructor:rank, nx.Graph)
+factory.print_match_results(matches_bipartite[0])
 print("")
-
 
 # Solve using the stable marriage approach
 print("Test on real preferences: stable marriage\n")
 matches_stable = factory.solve(method='stable_marriage')
-rankings = factory.get_match_ranks(matches_stable[0])  # stable marriage returns a tuple of (instructor:class, class:instructor)
-factory.print_match_results(rankings)
+# stable marriage returns a tuple of (instructor:class, class:instructor)
+factory.print_match_results(matches_stable[0])
 print("")
-
 
 # Solve using linear programming
 print("Test on real preferences: linear programming\n")
 matches_lp = factory.solve(method='linear_programming', lp_method='default')
-rankings = factory.get_match_ranks(matches_lp[0])
-factory.print_match_results(rankings)
+factory.print_match_results(matches_lp[0])
 print("")

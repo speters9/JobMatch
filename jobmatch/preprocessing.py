@@ -8,14 +8,32 @@ from typing import Dict, List
 import pandas as pd
 from rapidfuzz import fuzz, process
 
+from jobmatch.dataclasses import Course, Instructor
 
-# %%
-@dataclass
-class Instructor:
-    name: str
-    max_classes: int
-    degree: str # 'mas' or 'phd'
-    preferences: list
+
+def build_instructors(df: pd.DataFrame, instructor_prefs: Dict[str, List[str]]) -> List[Instructor]:
+    instructor_dict = df.to_dict(orient = "records")
+    instructor_list = []
+    for instructor in instructor_dict:
+        instructor_list.append(Instructor(
+                                        name=instructor['name'],
+                                        max_classes=instructor['max_classes'],
+                                        degree=instructor['degree'],
+                                        preferences=instructor_prefs.get(instructor['name'])
+                                        ))
+    return instructor_list
+
+def build_courses(df: pd.DataFrame) -> List[Course]:
+    course_dict = df.to_dict(orient = "records")
+    course_list = []
+    for course in course_dict:
+        course_list.append(Course(
+                                name=course['course_name'],
+                                course_id=course['course_id'],
+                                course_description=course['course_description'],
+                                sections_available=course['sections_available']
+                                ))
+    return course_list
 
 
 def normalize_preferences(preference_string: str) -> List[str]:
@@ -127,43 +145,7 @@ def parse_preferences(preference_string: str, course_id_map: Dict[str, str], cou
     return standardized_preferences
 
 
-# def create_preference_tuples(individuals: Dict[str, List[str]], all_courses: List[str]) -> Dict[str, List[namedtuple]]:
-#     """Convert a dictionary of lists into a dictionary of lists of named tuples with rankings.
-
-#     Args:
-#         individuals (Dict[str, List[str]]): A dictionary of instructors and their course preferences.
-#         all_courses (List[str]): A list of all available courses.
-#     Returns:
-#         Dict[str, List[namedtuple]]: A dictionary of instructors and their ranked preferences as named tuples.
-#     """
-#     # Define a named tuple to store course and its rank
-#     Preference = namedtuple('Preference', ['course', 'rank'])
-
-#     # Get the maximum rank to assign to non-listed courses
-#     max_rank = len(all_courses)
-
-#     # Initialize the dictionary to store preferences as named tuples
-#     preferences_with_ranks = {}
-
-#     for instructor, preferences in individuals.items():
-#         # Create the list of Preference named tuples for this instructor
-#         ranked_preferences = []
-
-#         # Add the listed courses with their specific rank
-#         for rank, course in enumerate(preferences, start=1):
-#             ranked_preferences.append(Preference(course=course, rank=rank))
-
-#         # Add any missing courses with the maximum rank
-#         missing_courses = set(all_courses) - set(preferences)
-#         for course in missing_courses:
-#             ranked_preferences.append(Preference(course=course, rank=max_rank))
-
-#         # Store the ranked preferences in the dictionary
-#         preferences_with_ranks[instructor] = ranked_preferences
-
-#     return preferences_with_ranks
-
-def create_preference_tuples(individuals: Dict[str, List[str]], all_courses: List[str]) -> Dict[str, List[namedtuple]]:
+def create_preference_tuples(instructors: List[Instructor], courses: List[Course]) -> Dict[str, List[namedtuple]]:
     """Convert a dictionary of lists into a dictionary of lists of named tuples with rankings.
 
     Args:
@@ -177,21 +159,28 @@ def create_preference_tuples(individuals: Dict[str, List[str]], all_courses: Lis
     Preference = namedtuple('Preference', ['course', 'rank'])
 
     # Get the maximum rank to assign to non-listed courses
-    max_rank = len(all_courses)
+    max_rank = len(courses)
+    all_courses = [course.name for course in courses]
 
     # Initialize the dictionary to store preferences as named tuples
     preferences_with_ranks = {}
 
-    for instructor, preferences in individuals.items():
+    for instructor in instructors:
         # Create the list of Preference named tuples for this instructor
         ranked_preferences = []
 
+        # skip if preferences are None
+        if not instructor.preferences:
+            preferences_with_ranks[instructor.name] = ranked_preferences
+            continue
+
+
         # Add the listed courses with their specific rank
-        for rank, course in enumerate(preferences, start=1):
+        for rank, course in enumerate(instructor.preferences, start=1):
             ranked_preferences.append(Preference(course=course, rank=rank))
 
         # Add any missing courses with the maximum rank
-        missing_courses = set(all_courses) - set(preferences)
+        missing_courses = set(all_courses) - set(instructor.preferences)
         for course in missing_courses:
             ranked_preferences.append(Preference(course=course, rank=max_rank))
 
@@ -199,9 +188,10 @@ def create_preference_tuples(individuals: Dict[str, List[str]], all_courses: Lis
         ranked_preferences.sort(key=lambda pref: (pref.rank, pref.course))
 
         # Store the ranked preferences in the dictionary
-        preferences_with_ranks[instructor] = ranked_preferences
+        preferences_with_ranks[instructor.name] = ranked_preferences
 
     return preferences_with_ranks
+
 
 def print_matching_results(instructor_assignments: Dict[str, List[str]],
                            individuals: Dict[str, List[str]]) -> Dict[str, List[int]]:
@@ -238,7 +228,7 @@ def print_matching_results(instructor_assignments: Dict[str, List[str]],
 
     return match_ranks
 
-# %%
+
 
 if __name__ == "__main__":
 
@@ -248,21 +238,18 @@ if __name__ == "__main__":
     # set wd
     from pyprojroot.here import here
 
-    from jobmatch.class_data import (course_id_map, course_map, course_slots,
-                                     instructor_max)
+    from jobmatch.class_data import (core_dict, course_id_map, course_map,
+                                     course_slots, instructor_max)
     wd = here()
 
 
     # load preferences df and order by instructor importance
-    pref_df = pd.read_excel(wd/ "data/raw/Teaching_Preferences_cao18Aug.xlsx")
+    pref_df = pd.read_excel(wd/ "data/raw/Teaching_Preferences_cao21Aug.xlsx")
     pref_df = pref_df.set_index('Name')
     pref_df = pref_df.reindex(instructor_max.keys()).reset_index()
 
-    # convert class identifiers from form format to standard format
-    core_dict = {
-        'PolSci 211': 'PS211',
-        'SocSci 311': 'SocSci311',
-        }
+    course_df = pd.read_csv(wd / "data/raw/course_data.csv")
+    inst_df = pd.read_csv(wd / "data/raw/instructor_info.csv")
 
     # get individual preferences from free response, add in core preferences last, if not included
     individuals = {}
@@ -275,9 +262,10 @@ if __name__ == "__main__":
         else:
             continue
 
+    instructor_list = build_instructors(inst_df,individuals)
+    course_list = build_courses(course_df)
 
     pprint(individuals)
-    #%%
-    all_courses = list(course_id_map.values())
-    preferences_with_ranks = create_preference_tuples(individuals, all_courses)
+
+    preferences_with_ranks = create_preference_tuples(instructor_list, course_list)
     pprint(preferences_with_ranks)
