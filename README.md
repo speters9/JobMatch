@@ -71,3 +71,5 @@ The JobMatch project provides a flexible and modular approach to solving individ
 - You can then choose from one of the supported methods (`stable_marriage`, `bipartite_matching`, `linear_programming`) to solve the assignment problem. 
 
 - Dependencies are managed by poetry, so `poetry install` with `pyproject.toml` file should get you going.
+
+- See `notebooks/faces_in_spaces` for example implementation
