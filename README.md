@@ -22,19 +22,22 @@ The JobMatch project provides a flexible and modular approach to solving individ
 ├── notebooks          <- Includes base implementation.
 │
 └── jobmatch           <- Source code for use in this project.
-    │
-    ├── JobMatch.py             <- Factory implementation of JobMatch class, a factory for calling the various algorithms.
-    │
-    ├── bipartite_graph_match.py               <- Code for bipartite matching
-    │
-    ├── linear_program_optimization.py         <- Code for matching via linear program optimization
-    │
-    ├── stable_marriage.py      <- Code for matching using stable marriage
-    │
-    ├── preprocessing.py        <- Code for parsing input preferences and preprocessing for passing to the matching algorithms
-    |
-    └── global_functions.py     <- Code with general utility functions
-
+|    │
+|    ├── JobMatch.py             <- Factory implementation of JobMatch class, a factory for calling the various algorithms.
+|    │
+|    ├── bipartite_graph_match.py               <- Code for bipartite matching
+|    │
+|    ├── linear_program_optimization.py         <- Code for matching via linear program optimization
+|    │
+|    ├── stable_marriage.py      <- Code for matching using stable marriage
+|    │
+|    ├── preprocessing.py        <- Code for parsing input preferences and preprocessing for passing to the matching algorithms
+|    |
+|    └── global_functions.py     <- Code with general utility functions
+|
+└──  gui                     <- Directory for the upload module and GUI components
+     ├── data_ingestion.py   <- Code for handling file uploads and data ingestion
+     └── gui_interface.py    <- Code for the drag-and-drop GUI interface
 ```
 
 --------
