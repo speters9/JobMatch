@@ -2437,6 +2437,17 @@ files = [
 ]
 
 [[package]]
+name = "tkinterdnd2"
+version = "0.4.2"
+description = "TkinterDnD2 is a python wrapper for George Petasis'' tkDnD Tk extension version 2"
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "tkinterdnd2-0.4.2-py3-none-any.whl", hash = "sha256:73eb0a2e380f49687c1ac3b499014b09b53febc7f93d7ab4fefa4ede9691ab57"},
+    {file = "tkinterdnd2-0.4.2.tar.gz", hash = "sha256:00180ac38d86578441dea4662026c7867a022e14501ad492f81e22e22135ceb6"},
+]
+
+[[package]]
 name = "tokenizers"
 version = "0.19.1"
 description = ""
@@ -2866,4 +2877,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<3.13"
-content-hash = "7ec882c648f4a60e719cbe9a9062f22ecb45c90d04d94340d9c6edbb077c8816"
+content-hash = "dc79aa700302b865a3c84edce03b57a1df4c5f18d4cd1c73e6c2f9d341bf5730"

@@ -42,7 +42,7 @@ def iterative_linear_programming_solver(
 
         # If no eligible instructors or courses remain, stop the loop
         if not eligible_instructors or not eligible_courses:
-            print(f"Convergence after {iter_count} iterations")
+            print(f"Linear Programming: Convergence after {iter_count} iterations")
             break
 
         # Create preference tuples for the current iteration
@@ -139,7 +139,7 @@ def iterative_linear_programming_solver(
 
         # If no assignments were made, break the loop
         if not assignments_made:
-            print(f"Convergence after {iter_count} iterations")
+            print(f"Linear Programming: Convergence after {iter_count} iterations")
             break
 
     return instructors, courses

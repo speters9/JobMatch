@@ -67,7 +67,7 @@ def iterative_bipartite_matching_solver(instructors: List[Instructor], courses: 
         eligible_courses = [course for course in courses if course.sections_available > 0]
 
         if not eligible_instructors or not eligible_courses:
-            print(f"All instructors or courses are exhausted after iteration {iter_count}. Ending loop.")
+            print(f"Bipartite Graph: Convergence after {iter_count} iterations")
             break
 
         # Build the network with eligible instructors and available courses
@@ -121,7 +121,7 @@ def iterative_bipartite_matching_solver(instructors: List[Instructor], courses: 
                     print(f"{instructor.name} cannot be assigned to {course.name} (Max classes: {instructor.max_classes}, Current: {len(instructor.assigned_courses)}, Unique courses: {len(instructor.unique_courses)}).")
 
         if not assignments_made:
-            print(f"No assignments made in iteration {iter_count}. Ending loop.")
+            print(f"Bipartite Graph: Convergence after {iter_count} iterations")
             break
 
     return instructors, courses, graphs

@@ -60,7 +60,7 @@ def stable_marriage_solver(instructors: List[Instructor],
                     current_proposals[instructor.name] += 1
                     free_instructors.append(instructor)
 
-    print(f"Convergence after {iter_count} iterations")
+    print(f"Stable Marriage: Convergence after {iter_count} iterations")
     return instructors, courses
 
 
