@@ -25,11 +25,6 @@ def sample_courses():
         Course(name='SocSci311', course_id='311', course_description='International Security Studies', sections_available=1),
     ]
 
-@pytest.fixture
-def preference_tuples(sample_instructors, sample_courses):
-    return create_preference_tuples(sample_instructors, sample_courses)
-
-
 
 def test_iterative_bipartite_matching_solver(sample_instructors, sample_courses):
     original_sections_available = {course.name: course.sections_available for course in sample_courses}
@@ -47,10 +42,8 @@ def test_iterative_bipartite_matching_solver(sample_instructors, sample_courses)
     for course in course_assignments:
         assert len(course.assigned_instructors) <= original_sections_available[course.name]
 
+
 def test_stable_marriage_solver(sample_instructors, sample_courses):
-    # Create the necessary course capacities and instructor max dicts
-    course_capacities = {course.name: course.sections_available for course in sample_courses}
-    instructor_max = {instructor.name: instructor.max_classes for instructor in sample_instructors}
     original_sections_available = {course.name: course.sections_available for course in sample_courses}
 
     instructor_assignments, course_assignments = stable_marriage_solver(
@@ -65,6 +58,11 @@ def test_stable_marriage_solver(sample_instructors, sample_courses):
     # Check that no course is over-assigned
     for course in course_assignments:
         assert len(course.assigned_instructors) <= original_sections_available[course.name]
+
+    # Check that unassignable courses remain unassigned
+    # Example: Bob prefers PS211, but if PS211 is fully assigned to others, check he is assigned to PS477
+    if len(next(c.assigned_instructors for c in course_assignments if c.name == 'PS211')) == original_sections_available['PS211']:
+        assert 'PS477' in next(i.assigned_courses for i in instructor_assignments if i.name == 'Bob')
 
 
 def test_iterative_linear_programming_solver(sample_instructors, sample_courses):
@@ -82,6 +80,10 @@ def test_iterative_linear_programming_solver(sample_instructors, sample_courses)
     # Check that no course is over-assigned
     for course in course_assignments:
         assert len(course.assigned_instructors) <= original_sections_available[course.name]
+
+    # Check that the assignments match expectations based on linear programming
+    # Example: Alice might be expected to get her top choice based on LP optimization
+    assert 'PS211' in next(i.assigned_courses for i in instructor_assignments if i.name == 'Alice')
 
 
 if __name__ == "__main__":

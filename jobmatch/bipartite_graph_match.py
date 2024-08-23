@@ -5,7 +5,8 @@ from typing import Dict, List, Set, Tuple
 # build and plot graph
 import networkx as nx
 
-from jobmatch.dataclasses import AssignmentTracker, Course, Instructor
+from jobmatch.dataclasses import Course, Instructor
+from jobmatch.global_functions import set_all_seeds
 
 # %%
 
@@ -48,7 +49,6 @@ def build_network(instructors: List[Instructor], courses: List[Course], instruct
 
 
 def iterative_bipartite_matching_solver(instructors: List[Instructor], courses: List[Course], instructor_weighted: bool = False, verbose: bool = False) -> Tuple[List[Instructor], List[Course], List[nx.Graph]]:
-    trackers = {instructor.name: AssignmentTracker(instructor=instructor) for instructor in instructors}
     graphs = []
     iter_count = 0
 
@@ -59,8 +59,8 @@ def iterative_bipartite_matching_solver(instructors: List[Instructor], courses: 
 
         # Filter out instructors who have reached their max classes or max unique courses
         eligible_instructors = [
-            tracker.instructor for tracker in trackers.values()
-            if tracker.course_count < tracker.instructor.max_classes and len(tracker.unique_courses) < 2
+            instructor for instructor in instructors
+            if len(instructor.assigned_courses) < instructor.max_classes and len(instructor.unique_courses) < 2
         ]
 
         # Filter out courses that are already fully assigned
@@ -81,44 +81,48 @@ def iterative_bipartite_matching_solver(instructors: List[Instructor], courses: 
 
         assignments_made = False
 
-        for instructor_name, course_name in matching:
-            if instructor_name in trackers:
-                tracker = trackers[instructor_name]
-                course = next(crs for crs in courses if crs.name == course_name.split('_')[0])
+        for node1, node2 in matching:
+            # Determine which node is the instructor and which is the course
+            if node1 in [instructor.name for instructor in eligible_instructors]:
+                instructor_name = node1
+                course_name = node2.split('_')[0]  # Extract course base name
             else:
-                tracker = trackers[course_name]
-                course = next(crs for crs in courses if crs.name == instructor_name.split('_')[0])
+                instructor_name = node2
+                course_name = node1.split('_')[0]  # Extract course base name
 
-            course_base = course.name
+            # Find the instructor and course objects
+            try:
+                instructor = next(inst for inst in eligible_instructors if inst.name == instructor_name)
+            except StopIteration:
+                print(f"Error: Instructor {instructor_name} not found in eligible instructors.")
+                continue
+
+            course = next(crs for crs in courses if crs.name == course_name)
 
             if verbose:
-                print(f"Trying to assign {tracker.instructor.name} to {course_base}...")
+                print(f"Trying to assign {instructor.name} to {course.name}...")
 
-            if tracker.can_assign(course_base):
-                available_slots = min(tracker.instructor.max_classes - tracker.course_count, course.sections_available)
+            # Check if the instructor can teach the course and has slots available
+            if instructor.can_teach(course.name):
+                available_slots = min(instructor.max_classes - len(instructor.assigned_courses), course.sections_available)
 
                 if available_slots > 0:
                     if verbose:
-                        print(f"Assigning {tracker.instructor.name} to {course_base} ({available_slots} slots)...")
-                    tracker.assign_course(course_base, available_slots)
-                    course.assigned_instructors.extend([tracker.instructor.name] * available_slots)
+                        print(f"Assigning {instructor.name} to {course.name} ({available_slots} slots)...")
+                    instructor.assign_course(course.name, available_slots)
+                    course.assigned_instructors.extend([instructor.name] * available_slots)
                     course.sections_available -= available_slots
                     assignments_made = True
                 else:
                     if verbose:
-                        print(f"No available slots for {tracker.instructor.name} in {course_base}.")
+                        print(f"No available slots for {instructor.name} in {course.name}.")
             else:
                 if verbose:
-                    print(f"{tracker.instructor.name} cannot be assigned to {course_base} (Max classes: {tracker.instructor.max_classes}, Current: {tracker.course_count}, Unique courses: {len(tracker.unique_courses)}).")
+                    print(f"{instructor.name} cannot be assigned to {course.name} (Max classes: {instructor.max_classes}, Current: {len(instructor.assigned_courses)}, Unique courses: {len(instructor.unique_courses)}).")
 
         if not assignments_made:
             print(f"No assignments made in iteration {iter_count}. Ending loop.")
             break
-
-    # Transfer assignments from trackers to instructor objects
-    for tracker in trackers.values():
-        tracker.instructor.assigned_courses.extend(tracker.assigned_courses)
-        tracker.instructor.unique_courses.update(tracker.unique_courses)
 
     return instructors, courses, graphs
 
@@ -151,7 +155,7 @@ if __name__ == "__main__":
     individuals = {}
     for item in pref_df.itertuples():
         name = item[1]
-        core_class = core_dict.get(item[6], 'PS211')
+        core_class = core_dict.get(item[6], 'PS211' if not item[0]==0 else item[7]) # top person gets top preference
         prefs = item[7]
         if not pd.isna(prefs):
             individuals[name] = parse_preferences(prefs, course_id_map, course_map, core_class)
@@ -161,9 +165,9 @@ if __name__ == "__main__":
     instructor_list = build_instructors(inst_df,individuals)
     course_list = build_courses(course_df)
 
-
+    set_all_seeds(94305)
     # Solve using bipartite matching
-    final_instructors, final_courses, G = iterative_bipartite_matching_solver(instructor_list, course_list, instructor_weighted=False)
+    final_instructors, final_courses, G = iterative_bipartite_matching_solver(instructor_list, course_list, instructor_weighted=True)
 
     print("\nInstructor assignments")
     # Print instructor assignments and ranks

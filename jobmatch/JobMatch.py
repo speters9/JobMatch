@@ -199,7 +199,7 @@ class JobMatch:
 
     def print_match_results(self, results):
         """Print the matching results using the Instructor's print method."""
-        for instructor in sorted(results, key=lambda x: x.name):
+        for instructor in results:
             instructor.print_assignments()
 
 

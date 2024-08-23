@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import List, Set
 
 
-@dataclass(frozen=True)
+@dataclass
 class Instructor:
     name: str
     max_classes: int
@@ -12,11 +12,32 @@ class Instructor:
     unique_courses: Set[str] = field(default_factory=set, compare=False)
 
     def can_teach(self, course: str) -> bool:
-        """Check if the instructor can teach the specified course."""
+        """Check if the instructor can be assigned another section of the given course."""
+        if len(self.assigned_courses) >= self.max_classes:
+            return False
+
+        if len(self.unique_courses) >= 2 and course not in self.unique_courses:
+            return False
+
         if self.degree == 'mas':
-            return True
-            #return course in ['PS211', 'PS211S', 'PS211FR', 'SocSci311', 'SocSci311S', 'SocSci212']  # Adjust courses as needed
-        return True  # 'phd' can teach any course
+            return True  # Adjust this based on specific courses master's degree holders can teach
+            # Return True only if the course is in the specified allowed list for master's degree instructors
+            #return course in ['PS211', 'PS211S', 'PS211FR', 'SocSci311', 'SocSci311S', 'SocSci212']
+
+        return True  # PhD instructors can teach any course
+
+    def assign_course(self, course: str, slots: int):
+        """Assign the course to the instructor, ensuring it does not exceed max_classes."""
+        # Calculate the number of slots that can actually be assigned
+        available_slots = min(slots, self.max_classes - len(self.assigned_courses))
+
+        if available_slots > 0:
+            self.assigned_courses.extend([course] * available_slots)
+            self.unique_courses.add(course)
+
+        # Log if no slots could be assigned (optional)
+        if available_slots < slots:
+            print(f"{available_slots} out of {slots} requested slots were assigned to {self.name} due to max course load")
 
     def print_assignments(self, skip_none=False):
         """Print the assigned courses and their ranks."""
@@ -58,37 +79,37 @@ class Course:
                 print(f"{self.name:<{max_course_name_length}} No instructors assigned.")
 
 
-@dataclass
-class AssignmentTracker:
-    instructor: Instructor
-    assigned_courses: List[str] = field(default_factory=list)
-    unique_courses: Set[str] = field(default_factory=set)
-    course_count: int = 0
+# @dataclass
+# class AssignmentTracker:
+#     instructor: Instructor
+#     assigned_courses: List[str] = field(default_factory=list)
+#     unique_courses: Set[str] = field(default_factory=set)
+#     course_count: int = 0
 
-    def can_assign(self, course: str) -> bool:
-        """Check if the instructor can be assigned another section of the given course."""
-        if self.course_count >= self.instructor.max_classes:
-            return False
+#     def can_assign(self, course: str) -> bool:
+#         """Check if the instructor can be assigned another section of the given course."""
+#         if self.course_count >= self.instructor.max_classes:
+#             return False
 
-        if len(self.unique_courses) >= 2 and course not in self.unique_courses:
-            return False
+#         if len(self.unique_courses) >= 2 and course not in self.unique_courses:
+#             return False
 
-        if self.instructor.degree == 'mas':
-            return True
-            # Return True only if the course is in the specified allowed list for master's degree instructors
-            #return course in ['PS211', 'PS211S', 'PS211FR', 'SocSci311', 'SocSci311S', 'SocSci212']
-        return True  # PhD instructors can teach any course
+#         if self.instructor.degree == 'mas':
+#             return True
+#             # Return True only if the course is in the specified allowed list for master's degree instructors
+#             #return course in ['PS211', 'PS211S', 'PS211FR', 'SocSci311', 'SocSci311S', 'SocSci212']
+#         return True  # PhD instructors can teach any course
 
-    def assign_course(self, course: str, slots: int):
-        """Assign the course to the instructor, ensuring it does not exceed max_classes."""
-        # Calculate the number of slots that can actually be assigned
-        available_slots = min(slots, self.instructor.max_classes - self.course_count)
+#     def assign_course(self, course: str, slots: int):
+#         """Assign the course to the instructor, ensuring it does not exceed max_classes."""
+#         # Calculate the number of slots that can actually be assigned
+#         available_slots = min(slots, self.instructor.max_classes - self.course_count)
 
-        if available_slots > 0:
-            self.assigned_courses.extend([course] * available_slots)
-            self.unique_courses.add(course)
-            self.course_count += available_slots
+#         if available_slots > 0:
+#             self.assigned_courses.extend([course] * available_slots)
+#             self.unique_courses.add(course)
+#             self.course_count += available_slots
 
-        # Log if no slots could be assigned (optional)
-        if available_slots < slots:
-            print(f"{available_slots} out of {slots} requested slots were assigned to {self.instructor.name} due to max course load")
+#         # Log if no slots could be assigned (optional)
+#         if available_slots < slots:
+#             print(f"{available_slots} out of {slots} requested slots were assigned to {self.instructor.name} due to max course load")

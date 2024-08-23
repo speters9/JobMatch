@@ -26,7 +26,7 @@ inst_df = pd.read_csv(wd / "data/raw/instructor_info.csv")
 individuals = {}
 for item in pref_df.itertuples():
     name = item[1]
-    core_class = core_dict.get(item[6], 'PS211')
+    core_class = core_dict.get(item[6], 'PS211' if not item[0]==0 else item[7])
     prefs = item[7]
     if not pd.isna(prefs):
         individuals[name] = parse_preferences(prefs, course_id_map, course_map, core_class)
@@ -44,7 +44,7 @@ factory = JobMatch(instructor_list, course_list)
 
 # Solve using the bipartite matching approach
 print("Test on real preferences: Bipartite graph\n")
-matches_bipartite = factory.solve(method='bipartite_matching', instructor_weighted=False)
+matches_bipartite = factory.solve(method='bipartite_matching', instructor_weighted=True)
 # bipartite returns a tuple of (instructor:class, instructor:rank, nx.Graph)
 factory.print_match_results(matches_bipartite[0])
 print("")
