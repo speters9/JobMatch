@@ -19,7 +19,7 @@ class Instructor:
         if len(self.unique_courses) >= 2 and course not in self.unique_courses:
             return False
 
-        if self.degree == 'mas':
+        if self.degree and self.degree == 'mas':
             return True  # Adjust this based on specific courses master's degree holders can teach
             # Return True only if the course is in the specified allowed list for master's degree instructors
             #return course in ['PS211', 'PS211S', 'PS211FR', 'SocSci311', 'SocSci311S', 'SocSci212']
@@ -46,12 +46,13 @@ class Instructor:
 
         if self.assigned_courses:
             courses_str = ", ".join(self.assigned_courses)
-            ranks_str = ", ".join(
-                str(self.preferences.index(course) + 1 if course in self.preferences else len(self.preferences) + 1)
-                for course in self.assigned_courses
-            )
-            # Format the output with aligned columns
-            print(f"{self.name:<{max_name_length}} [{courses_str:<{max_courses_length}}] Ranks: ({ranks_str})")
+            if self.preferences:
+                ranks_str = ", ".join(
+                    str(self.preferences.index(course) + 1 if course in self.preferences else len(self.preferences) + 1)
+                    for course in self.assigned_courses
+                )
+                # Format the output with aligned columns
+                print(f"{self.name:<{max_name_length}} [{courses_str:<{max_courses_length}}] Ranks: ({ranks_str})")
         else:
             if not skip_none:
                 print(f"{self.name:<{max_name_length}} No courses assigned.")

@@ -18,7 +18,7 @@ def build_instructors(df: pd.DataFrame, instructor_prefs: Dict[str, List[str]]) 
         instructor_list.append(Instructor(
                                         name=instructor['name'],
                                         max_classes=instructor['max_classes'],
-                                        degree=instructor['degree'],
+                                        degree=instructor.get('degree', None), # should be robust to not having a degree
                                         preferences=instructor_prefs.get(instructor['name'])
                                         ))
     return instructor_list
@@ -174,7 +174,6 @@ def create_preference_tuples(instructors: List[Instructor], courses: List[Course
             preferences_with_ranks[instructor.name] = ranked_preferences
             continue
 
-
         # Add the listed courses with their specific rank
         for rank, course in enumerate(instructor.preferences, start=1):
             ranked_preferences.append(Preference(course=course, rank=rank))
@@ -183,6 +182,17 @@ def create_preference_tuples(instructors: List[Instructor], courses: List[Course
         missing_courses = set(all_courses) - set(instructor.preferences)
         for course in missing_courses:
             ranked_preferences.append(Preference(course=course, rank=max_rank))
+
+        # if instructor.degree == 'phd':
+        #     # Add any missing courses with the maximum rank
+        #     missing_courses = set(all_courses) - set(instructor.preferences)
+        #     for course in missing_courses:
+        #         ranked_preferences.append(Preference(course=course, rank=max_rank))
+        # elif instructor.degree == 'mas':
+        #     mas_classes = ['PS211', 'PS211S', 'PS211FR', 'SocSci311', 'SocSci311S', 'SocSci212']
+        #     missing_courses = set(mas_classes) - set(instructor.preferences)
+        #     for course in missing_courses:
+        #         ranked_preferences.append(Preference(course=course, rank=max_rank))
 
         # Sort the preferences by rank, then alphabetically by course name if ranks are tied
         ranked_preferences.sort(key=lambda pref: (pref.rank, pref.course))

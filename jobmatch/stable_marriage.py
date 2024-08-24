@@ -60,7 +60,29 @@ def stable_marriage_solver(instructors: List[Instructor],
                     current_proposals[instructor.name] += 1
                     free_instructors.append(instructor)
 
-    print(f"Convergence after {iter_count} iterations")
+    # Post-processing step: Assign unmatched instructors to available courses
+    for instructor in instructors:
+        while len(instructor.assigned_courses) < instructor.max_classes:
+            available_courses = [course for course in courses if course.sections_available > 0]
+
+            if not available_courses:
+                break  # No courses left to assign
+
+            assigned = False  # Track whether an assignment was made
+
+            for course in available_courses:
+                if instructor.can_teach(course.name):
+                    instructor.assign_course(course.name, 1)
+                    course.assigned_instructors.append(instructor.name)
+                    course.sections_available -= 1
+                    assigned = True
+                    break  # Exit the for loop once an assignment is made
+
+            if not assigned:
+                break  # Exit the while loop if no valid assignment could be made
+
+
+    print(f"Stable Marriage: Convergence after {iter_count} iterations")
     return instructors, courses
 
 

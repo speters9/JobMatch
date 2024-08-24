@@ -100,7 +100,7 @@ class JobMatch:
         # Call the stable marriage solution logic
         return stable_marriage_solver(instructors, courses)
 
-    def iterative_bipartite_matching_solver(self, instructor_weighted: bool = False) -> Tuple[Dict[str, str], Dict[str, int], nx.Graph]:
+    def iterative_bipartite_matching_solver(self, instructor_weighted: bool = True, ordered: bool = False) -> Tuple[Dict[str, str], Dict[str, int], nx.Graph]:
         """Solve the matching problem using the bipartite matching algorithm.
 
         Args:
