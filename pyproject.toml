@@ -13,18 +13,11 @@ scikit-learn = "^1.4.2"
 arrow = "^1.3.0"
 numpy = "^1.26.4"
 python-dotenv = "^1.0.1"
-transformers = "^4.40.1"
-sentence-transformers = "^3.0.1"
-torch = { version = "2.0.0", source="torch"}
-torchvision = { version = "0.15.1", source="torch"}
-torchaudio = { version = "2.0.1", source="torch"}
 pyprojroot = "^0.3.0"
 networkx = "^3.3"
 cookiecutter-data-science = "^2.0.0"
 rapidfuzz = "^3.9.6"
 matplotlib = "^3.9.2"
-plotly = "^5.23.0"
-pyvis = "^0.3.2"
 jedi = "0.18.2"
 pulp = "^2.9.0"
 openpyxl = "^3.1.5"
@@ -49,6 +42,10 @@ priority = "supplemental"
 [[tool.poetry.source]]
 name = "PyPI"
 priority = "primary"
+
+
+[tool.poetry.group.dev.dependencies]
+pyinstaller = "^6.10.0"
 
 [build-system]
 requires = ["poetry-core"]
