@@ -35,6 +35,8 @@ pytest = "^8.3.2"
 pre-commit = "^3.8.0"
 isort = "^5.13.2"
 tkinterdnd2 = "^0.4.2"
+sv-ttk = "^2.6.0"
+tk = "^0.1.0"
 
 
 [[tool.poetry.source]]

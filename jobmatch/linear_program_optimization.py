@@ -139,8 +139,26 @@ def iterative_linear_programming_solver(
 
         # If no assignments were made, break the loop
         if not assignments_made:
-            print(f"Linear Programming: Convergence after {iter_count} iterations")
             break
+
+     # Post-processing step: Assign unassigned courses to available instructors
+    for course in courses:
+        while course.sections_available > 0:
+            available_instructors = [
+                instructor for instructor in instructors
+                if len(instructor.assigned_courses) < instructor.max_classes and instructor.can_teach(course.name)
+            ]
+            if not available_instructors:
+                break  # No instructors left to assign
+            instructor = available_instructors[0]
+            instructor.assign_course(course.name, 1)
+            course.assigned_instructors.append(instructor.name)
+            course.sections_available -= 1
+
+            #if verbose:
+            print(f"Assigned {course.name} to {instructor.name} in post-processing.")
+
+    print(f"Linear Programming: Convergence after {iter_count} iterations")
 
     return instructors, courses
 

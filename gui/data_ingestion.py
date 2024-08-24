@@ -1,6 +1,7 @@
 import pandas as pd
 
-from gui.load_data import load_and_process_data
+from gui.load_data import (load_and_process_course_data,
+                           load_and_process_instructor_data)
 from jobmatch.dataclasses import Course, Instructor
 
 
@@ -14,7 +15,7 @@ def load_instructors(file_path: str) -> list[Instructor]:
     Returns:
         list[Instructor]: A list of Instructor objects created from the file data.
     """
-    df = load_and_process_data(file_path)
+    df = load_and_process_instructor_data(file_path)
 
     instructors = []
     for _, row in df.iterrows():
@@ -24,10 +25,11 @@ def load_instructors(file_path: str) -> list[Instructor]:
         instructors.append(Instructor(
             name=row['name'],
             max_classes=row['max_classes'],
-            degree=row['degree'],
+            degree=row['degree'] if row['degree'] else None,
             preferences=preferences
         ))
     return instructors
+
 
 def load_courses(file_path: str) -> list[Course]:
     """
@@ -39,7 +41,7 @@ def load_courses(file_path: str) -> list[Course]:
     Returns:
         list[Course]: A list of Course objects created from the file data.
     """
-    df = load_and_process_data(file_path)
+    df = load_and_process_course_data(file_path)
 
     courses = []
     for _, row in df.iterrows():
@@ -65,7 +67,7 @@ if __name__ == "__main__":
     course_file_path = wd / "data/raw/course_data.csv"
 
     # df to inspect
-    df = load_and_process_data(str(instructor_file_path))
+    df = load_and_process_instructor_data(str(instructor_file_path))
 
     # Load instructors and courses
     instructors = load_instructors(str(instructor_file_path))
