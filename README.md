@@ -36,7 +36,11 @@ The JobMatch project provides a flexible and modular approach to solving individ
 |    └── global_functions.py     <- Code with general utility functions
 |
 └──  gui                     <- Directory for the upload module and GUI components
-     ├── data_ingestion.py   <- Code for handling file uploads and data ingestion
+     │
+     ├── load_data.py        <- Preprocessing tasks for drag and drop data input, normalizing data and prepping for ingestion
+     |
+     ├── data_ingestion.py   <- Code for handling normalized input and converting to Instructor and Course objects for the algorithms to use
+     |
      └── gui_interface.py    <- Code for the drag-and-drop GUI interface
 ```
 
