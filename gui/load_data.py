@@ -21,13 +21,12 @@ def normalize_column_names(df: pd.DataFrame) -> pd.DataFrame:
         .str.lower()            # Convert to lowercase
         .str.replace(r'\s+', '_', regex=True)  # Replace spaces with underscores
         .str.replace(r'[^a-z0-9_]', '', regex=True)  # Remove non-alphanumeric characters
-)
+    )
 
     if len(df.columns) != len(wdf.columns):
         raise ValueError("Duplicate columns detected. Please check naming patterns")
 
     return df
-
 
 
 def identify_and_normalize_preferences(df: pd.DataFrame, base_name: str = 'pref') -> pd.DataFrame:
@@ -106,7 +105,6 @@ def validate_columns(df: pd.DataFrame, required_columns: list, data_type: str = 
         if pref_numbers != list(range(1, len(pref_numbers) + 1)):
             raise ValueError(f"Preference columns in {data_type} data are not sequential or contain duplicates.")
 
-
     elif data_type == 'course':
         # Course-specific validation
         missing_columns = [col for col in required_columns if col not in df.columns]
@@ -119,7 +117,6 @@ def validate_columns(df: pd.DataFrame, required_columns: list, data_type: str = 
 
     else:
         raise ValueError(f"Unknown data type: {data_type}. Valid options are 'instructor' and 'course'.")
-
 
 
 def load_and_process_instructor_data(file_path: str) -> pd.DataFrame:
@@ -146,6 +143,7 @@ def load_and_process_instructor_data(file_path: str) -> pd.DataFrame:
 
     return df
 
+
 def load_and_process_course_data(file_path: str) -> pd.DataFrame:
     """
     Load and process Course data from an Excel or CSV file.
@@ -166,7 +164,6 @@ def load_and_process_course_data(file_path: str) -> pd.DataFrame:
     validate_columns(df, required_columns, data_type='course')
 
     return df
-
 
 
 if __name__ == "__main__":

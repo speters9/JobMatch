@@ -1,5 +1,3 @@
-import pandas as pd
-
 from gui.load_data import (load_and_process_course_data,
                            load_and_process_instructor_data)
 from jobmatch.dataclasses import Course, Instructor
@@ -20,7 +18,7 @@ def load_instructors(file_path: str) -> list[Instructor]:
     instructors = []
     for _, row in df.iterrows():
         # Extract preference columns
-        preferences = [row[f'pref_{i+1}'] for i in range(len(row)) if f'pref_{i+1}' in row and pd.notna(row[f'pref_{i+1}'])]
+        preferences = [row[f'pref_{i+1}'] for i in range(len(row)) if f'pref_{i+1}' in row and isinstance(row[f'pref_{i+1}'], str)]
 
         instructors.append(Instructor(
             name=row['name'],
@@ -63,7 +61,6 @@ if __name__ == "__main__":
     # Example file path
     instructor_file_path = wd / 'data/processed/instructors_with_preferences.csv'
 
-
     course_file_path = wd / "data/raw/course_data.csv"
 
     # df to inspect
@@ -72,3 +69,4 @@ if __name__ == "__main__":
     # Load instructors and courses
     instructors = load_instructors(str(instructor_file_path))
     courses = load_courses(str(course_file_path))
+    print(instructors)

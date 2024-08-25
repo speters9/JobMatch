@@ -3,7 +3,7 @@ from typing import Callable, Dict, List, Optional, Tuple
 
 import networkx as nx
 
-from jobmatch.bipartite_graph_match import iterative_bipartite_matching_solver
+from jobmatch.bipartite_graph_match import bipartite_matching_solver
 from jobmatch.dataclasses import Course, Instructor
 from jobmatch.linear_program_optimization import \
     iterative_linear_programming_solver
@@ -79,7 +79,7 @@ class JobMatch:
         if method == 'stable_marriage':
             return self.stable_marriage_solver
         elif method == 'bipartite_matching':
-            return self.iterative_bipartite_matching_solver
+            return self.bipartite_matching_solver
         elif method == 'linear_programming':
             return self.iterative_linear_programming_solver
         else:
@@ -100,7 +100,7 @@ class JobMatch:
         # Call the stable marriage solution logic
         return stable_marriage_solver(instructors, courses)
 
-    def iterative_bipartite_matching_solver(self, instructor_weighted: bool = True, ordered: bool = False) -> Tuple[Dict[str, str], Dict[str, int], nx.Graph]:
+    def bipartite_matching_solver(self, instructor_weighted: bool = True) -> Tuple[Dict[str, str], Dict[str, int], nx.Graph]:
         """Solve the matching problem using the bipartite matching algorithm.
 
         Args:
@@ -119,7 +119,7 @@ class JobMatch:
         courses = copy.deepcopy(self.courses)
 
         # Call the stable marriage solution logic
-        return iterative_bipartite_matching_solver(instructors, courses, instructor_weighted=instructor_weighted)
+        return bipartite_matching_solver(instructors, courses, instructor_weighted=instructor_weighted)
 
     def iterative_linear_programming_solver(self, lp_method: str = 'default') -> Tuple[Dict[str, str], Dict[str, int]]:
         """Solve the matching problem using linear programming.
@@ -162,7 +162,7 @@ class JobMatch:
         result = solver(**kwargs)
 
         # Calculate and store match ranks
-        #self.match_ranks = self.print_match_results(result[0])
+        # self.match_ranks = self.print_match_results(result[0])
 
         return result
 
@@ -220,7 +220,7 @@ if __name__ == "__main__":
     wd = here()
 
     # load preferences df and order by instructor importance
-    pref_df = pd.read_excel(wd/ "data/raw/Teaching_Preferences_cao21Aug.xlsx")
+    pref_df = pd.read_excel(wd / "data/raw/Teaching_Preferences_cao21Aug.xlsx")
     pref_df = pref_df.set_index('Name')
     pref_df = pref_df.reindex(instructor_max.keys()).reset_index()
 
@@ -238,9 +238,8 @@ if __name__ == "__main__":
         else:
             continue
 
-    instructor_list = build_instructors(inst_df,individuals)
+    instructor_list = build_instructors(inst_df, individuals)
     course_list = build_courses(course_df)
-
 
     # Create a solver factory
     factory = JobMatch(instructor_list, course_list)
