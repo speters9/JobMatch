@@ -99,6 +99,14 @@ The code has also been packaged into a simple GUI for ease of use. Simply drag a
 
 To run the JobMatch GUI application, you can execute the `run_jobmatch_app.py` script located in the gui directory. This script launches the drag-and-drop interface, allowing you to input instructor and course data, select a matching algorithm, and view the results interactively.
 
-```
+If you're using Poetry for environment management, you can run the application with:
+
+```bash
 poetry run python gui/run_jobmatch_app.py
+```
+
+If you're not using Poetry, ensure that all dependencies are installed (e.g., using pip), and then run the application with:
+
+```bash
+python gui/run_jobmatch_app.py
 ```
