@@ -85,7 +85,7 @@ def bipartite_matching_solver(instructors, courses, instructor_weighted=False, v
 if __name__ == "__main__":
     # test cases -- overlapping preferences and classes
 
-    import matplotlib.pyplot as plt
+    #import matplotlib.pyplot as plt
     import pandas as pd
     from pyprojroot.here import here
 
@@ -133,31 +133,31 @@ if __name__ == "__main__":
     # Print course assignments
     for course in final_courses:
         course.print_assignments()
-    # %%
+    # # %%
 
-    def visualize_network(G):
-        pos = nx.spring_layout(G, seed=42)  # Layout for positioning nodes
+    # def visualize_network(G):
+    #     pos = nx.spring_layout(G, seed=42)  # Layout for positioning nodes
 
-        # Extract the weights from the graph edges
-        edge_labels = nx.get_edge_attributes(G, 'weight')
+    #     # Extract the weights from the graph edges
+    #     edge_labels = nx.get_edge_attributes(G, 'weight')
 
-        # Draw the graph
-        plt.figure(figsize=(12, 8))
+    #     # Draw the graph
+    #     plt.figure(figsize=(12, 8))
 
-        # Draw the nodes
-        nx.draw_networkx_nodes(G, pos, node_size=700, node_color='lightblue')
+    #     # Draw the nodes
+    #     nx.draw_networkx_nodes(G, pos, node_size=700, node_color='lightblue')
 
-        # Draw the edges with their weights
-        nx.draw_networkx_edges(G, pos, width=1.0, alpha=0.5)
+    #     # Draw the edges with their weights
+    #     nx.draw_networkx_edges(G, pos, width=1.0, alpha=0.5)
 
-        # Draw the labels for nodes
-        nx.draw_networkx_labels(G, pos, font_size=12, font_family="sans-serif")
+    #     # Draw the labels for nodes
+    #     nx.draw_networkx_labels(G, pos, font_size=12, font_family="sans-serif")
 
-        # Draw the edge labels (weights)
-        nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels)
+    #     # Draw the edge labels (weights)
+    #     nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels)
 
-        plt.title("Bipartite Network Visualization with Weights")
-        plt.show()
+    #     plt.title("Bipartite Network Visualization with Weights")
+    #     plt.show()
 
-    # Visualize the network with Plotly
-    visualize_network(G)
+    # # Visualize the network with Plotly
+    # visualize_network(G)
