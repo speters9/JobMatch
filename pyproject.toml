@@ -27,16 +27,9 @@ sphinx-rtd-theme = "2.0.0"
 pytest = "^8.3.2"
 pre-commit = "^3.8.0"
 isort = "^5.13.2"
-sv-ttk = "^2.6.0"
-tk = "^0.1.0"
 nuitka = "^2.4.7"
-tkinterdnd2 = "^0.4.2"
-
-
-[[tool.poetry.source]]
-name = "torch"
-url = "https://download.pytorch.org/whl/cu118"
-priority = "supplemental"
+pyqt5 = "5.15.11"
+pyqt5-qt5 = "=5.15.2"
 
 
 [[tool.poetry.source]]
