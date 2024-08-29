@@ -166,37 +166,6 @@ class JobMatch:
 
         return result
 
-    # def get_match_ranks(self, matches: Dict[str, List[str]]) -> Dict[str, Tuple[List[str], List[int]]]:
-    #     """Calculate and return the matched courses and their ranks for each instructor.
-
-    #     Args:
-    #         matches (Dict[str, List[str]]): A dictionary mapping instructors to their assigned courses.
-
-    #     Returns:
-    #         Dict[str, Tuple[List[str], List[int]]]: A dictionary mapping instructors to a tuple,
-    #             where the first element is a list of courses and the second is a list of corresponding ranks.
-    #     """
-    #     match_ranks = {}
-
-    #     for instructor, courses in sorted(matches.items()):
-    #         ranked_courses = []
-    #         ranks = []
-
-    #         for course in courses:
-    #             # Get the rank of the matched course according to the instructor's preferences
-    #             if self.preferences_with_ranks and instructor in self.preferences_with_ranks:
-    #                 pref_dict = {pref.course: pref.rank for pref in self.preferences_with_ranks[instructor]}
-    #                 rank = pref_dict.get(course, len(self.course_slots))
-    #             else:
-    #                 rank = len(self.course_slots)  # Default to a low rank if not found
-
-    #             ranked_courses.append(course)
-    #             ranks.append(rank)
-
-    #         match_ranks[instructor] = (ranked_courses, ranks)
-
-    #     return match_ranks
-
     def print_match_results(self, results):
         """Print the matching results using the Instructor's print method."""
         for instructor in results:

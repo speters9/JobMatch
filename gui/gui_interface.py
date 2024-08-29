@@ -212,19 +212,42 @@ class JobMatchApp(TkinterDnD.Tk):
             return  # User cancelled the save dialog
 
         match_type = self.match_type.get()
-        results = self.matching_results[0] if match_type == "Instructor Matches" else self.matching_results[1]
+        if match_type == "Instructor Matches":
+            results = self.matching_results[0]
+            query = 'instructor'
+        elif match_type == "Course Matches":
+            results = self.matching_results[1]
+            query = 'course'
+
+        method = self.selected_method.get()
 
         # Export the results to CSV
         with open(file_path, mode='w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(["Name", "Assigned Courses", "Ranks"])  # Header row
-            for instructor in results:
-                courses = [course for course in instructor.assigned_courses]
-                ranks = [
-                    str(instructor.preferences.index(course) + 1) if course in instructor.preferences else "N/A"
-                    for course in instructor.assigned_courses
-                ]
-                writer.writerow([instructor.name, ', '.join(courses), ', '.join(ranks)])
+            writer.writerow([f"{match_type}: {method}"])
+            if query == "instructor":
+                # Determine the maximum number of courses assigned to any instructor
+                max_courses = max(len(instructor.assigned_courses) for instructor in results)
+
+                # Create header row with dynamic columns for each course assignment
+                header = ["Name"] + [f"Course_{i+1}" for i in range(max_courses)] + ["Rankings"]
+                writer.writerow(header)  # Write the header
+
+                for instructor in results:
+                    # Fill courses and ranks up to the max_courses length
+                    courses = instructor.assigned_courses + [""] * (max_courses - len(instructor.assigned_courses))
+                    ranks = [
+                        str(instructor.preferences.index(course) + 1) if course in instructor.preferences else "N/A"
+                        for course in instructor.assigned_courses
+                    ] + [""] * (max_courses - len(instructor.assigned_courses))
+
+                    # Write each instructor's name, courses, and ranks
+                    writer.writerow([instructor.name] + courses + [', '.join([rank for rank in ranks if len(rank.strip())>0])])
+            elif query == "course":
+                writer.writerow(["Course", "Assigned Instructors"])  # Header row
+                for course in results:
+                    instructors = [inst for inst in course.assigned_instructors]
+                    writer.writerow([course.name, ', '.join(sorted(instructors))])
 
         tk.messagebox.showinfo("Export Successful", f"Results have been exported to {file_path}")
 

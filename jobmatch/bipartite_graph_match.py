@@ -53,13 +53,16 @@ def bipartite_matching_solver(instructors, courses, instructor_weighted=False, v
     """
     Solve the matching problem using bipartite matching with factorized instructors and tie-breaking by priority.
     """
+    # Step 1: Build the graph
     G, instructor_nodes = build_network_with_factorized_instructors(instructors, courses, instructor_weighted)
 
+    # Step 2: Perform the initial matching
     matching = nx.algorithms.matching.max_weight_matching(G, maxcardinality=True)
 
     if verbose:
         print(f"Matching: {matching}")
 
+    # Step 3: Apply the matching to the instructors and courses
     for node1, node2 in matching:
         if node1 in instructor_nodes:
             instructor_section, course_section = node1, node2
@@ -77,6 +80,21 @@ def bipartite_matching_solver(instructors, courses, instructor_weighted=False, v
             instructor.assign_course(course.name, available_slots)
             course.assigned_instructors.append(instructor.name)
             course.sections_available -= available_slots
+
+    # Step 4: Post-processing to assign remaining unassigned courses
+    unassigned_courses = [course for course in courses if course.sections_available > 0]
+    unassigned_instructors = [instructor for instructor in instructors if len(instructor.assigned_courses) < instructor.max_classes]
+
+    for course in unassigned_courses:
+        for instructor in unassigned_instructors:
+            if instructor.can_teach(course.name) and course.sections_available > 0:
+                available_slots = min(1, course.sections_available)
+                instructor.assign_course(course.name, available_slots)
+                course.assigned_instructors.append(instructor.name)
+                course.sections_available -= available_slots
+
+            if course.sections_available == 0:
+                break
 
     return instructors, courses, G
 
