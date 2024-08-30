@@ -178,3 +178,4 @@ nuitka-crash-report.xml
 jobmatch_app.dist/
 jobmatch_app.build/
 jobmatch_app.exe
+app.log
