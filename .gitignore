@@ -175,3 +175,5 @@ reports/
 jobmatch/class_data.py
 **/archive/
 nuitka-crash-report.xml
+jobmatch_app.dist/
+jobmatch_app.build/
