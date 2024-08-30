@@ -155,8 +155,8 @@ def iterative_linear_programming_solver(
             course.assigned_instructors.append(instructor.name)
             course.sections_available -= 1
 
-            #if verbose:
-            print(f"Assigned {course.name} to {instructor.name} in post-processing.")
+            if verbose:
+                print(f"Assigned {course.name} to {instructor.name} in post-processing.")
 
     print(f"Linear Programming: Convergence after {iter_count} iterations")
 

@@ -11,13 +11,13 @@ from gui.gui_interface import JobMatchApp
 
 
 def main():
-    logging.basicConfig(level=logging.DEBUG,
+    logging.basicConfig(level=logging.INFO,
                         format='%(asctime)s - %(levelname)s - %(message)s',
                         handlers=[
                             logging.FileHandler("app.log"),
                             logging.StreamHandler()  # This will print to the console
                         ])
-    logging.debug("Starting application...")
+    logging.info("Starting application...")
     try:
         # Ensure QApplication is initialized here
         app = QApplication(sys.argv)
@@ -26,7 +26,7 @@ def main():
         window = JobMatchApp()
         window.show()
 
-        logging.debug("App initialized, entering main loop...")
+        logging.info("App initialized, entering main loop...")
 
         # Execute the application
         app.exec_()
