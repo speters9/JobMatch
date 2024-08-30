@@ -6,7 +6,7 @@ from tkinter import filedialog, ttk
 import sv_ttk
 from tkinterdnd2 import DND_FILES, TkinterDnD
 
-from gui.data_ingestion import load_courses, load_instructors
+from gui.load_data import load_courses, load_instructors
 from jobmatch.global_functions import set_all_seeds
 from jobmatch.JobMatch import JobMatch
 

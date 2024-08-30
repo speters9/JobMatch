@@ -30,11 +30,14 @@ isort = "^5.13.2"
 nuitka = "^2.4.7"
 pyqt5 = "5.15.11"
 pyqt5-qt5 = "=5.15.2"
+pytest-qt = "^4.4.0"
+pytest-mock = "^3.14.0"
 
 
 [[tool.poetry.source]]
 name = "PyPI"
 priority = "primary"
+
 
 
 [build-system]

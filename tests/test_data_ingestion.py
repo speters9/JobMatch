@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from gui.data_ingestion import load_courses, load_instructors
+from gui.load_data import load_courses, load_instructors
 
 
 @pytest.fixture

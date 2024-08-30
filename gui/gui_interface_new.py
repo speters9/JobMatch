@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import (QApplication, QComboBox, QFileDialog, QHBoxLayout,
                              QLabel, QMainWindow, QMessageBox, QPushButton,
                              QTextEdit, QVBoxLayout, QWidget)
 
-from gui.data_ingestion import load_courses, load_instructors
+from gui.load_data import load_courses, load_instructors
 from jobmatch.global_functions import set_all_seeds
 from jobmatch.JobMatch import JobMatch
 
