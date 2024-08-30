@@ -4,7 +4,7 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtTest import QTest
 from PyQt5.QtWidgets import QApplication, QMessageBox
 
-from gui.gui_interface_new import JobMatchApp
+from gui.gui_interface import JobMatchApp
 from jobmatch.dataclasses import Course, Instructor
 
 
