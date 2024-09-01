@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import QApplication, QLabel, QMessageBox
 
 from gui.gui_interface import JobMatchApp
 from gui.jobmatch_app import \
-    SplashScreen  # Replace 'main_script' with the name of your script file
+    AppWithSplashScreen  # Replace 'main_script' with the name of your script file
 
 
 @pytest.fixture
@@ -16,7 +16,7 @@ def app(qtbot):
 
 def test_splash_screen_initialization(qtbot):
     """Validate splash screen starts."""
-    splash = SplashScreen()
+    splash = AppWithSplashScreen()
 
     # Ensure that the splash screen initializes with the correct values
     assert splash.progress.value() == 0
@@ -27,7 +27,7 @@ def test_splash_screen_initialization(qtbot):
 
 def test_splash_screen_update_loading(qtbot):
     """Make sure progres bar works."""
-    splash = SplashScreen()
+    splash = AppWithSplashScreen()
     qtbot.addWidget(splash)
 
     # Mock the start_main_app to prevent it from being called during the test
@@ -44,7 +44,7 @@ def test_splash_screen_update_loading(qtbot):
 def test_splash_screen_error_handling(qtbot):
     """Confirm errors raised in startup for user knowledge."""
     with patch.object(QMessageBox, 'critical') as mock_critical:
-        splash = SplashScreen()
+        splash = AppWithSplashScreen()
         qtbot.addWidget(splash)
 
         # Patch the JobMatchApp class to raise an exception when instantiated

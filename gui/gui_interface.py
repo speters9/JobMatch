@@ -217,6 +217,7 @@ class JobMatchApp(QMainWindow):
         # Add Instructions Button
         self.instructions_button = QPushButton("Instructions", self)
         self.instructions_button.setStyleSheet("font-size: 16px; font-weight: bold;")
+        self.instructions_button.setFixedWidth(200)
         layout.addWidget(self.instructions_button, alignment=QtCore.Qt.AlignCenter)
 
         # Connect signals to slots
