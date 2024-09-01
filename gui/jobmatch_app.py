@@ -14,9 +14,9 @@ from gui import resources_rc  # image bundled for easy
 from gui.gui_interface import JobMatchApp
 
 
-class SplashScreen(QMainWindow):
+class AppWithSplashScreen(QMainWindow):
     def __init__(self):
-        super(SplashScreen, self).__init__()
+        super(AppWithSplashScreen, self).__init__()
 
         self.icon_path = ':/images/jobmatch_icon_rounded.png'
 
@@ -85,7 +85,7 @@ def main():
         app = QApplication(sys.argv)
 
         # Start the splash screen
-        splash = SplashScreen()
+        splash = AppWithSplashScreen()
 
         logging.info("App initialized, entering main loop...")
         sys.exit(app.exec_())

@@ -1,8 +1,11 @@
+from unittest.mock import patch
+
 import pandas as pd
 import pytest
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtTest import QTest
-from PyQt5.QtWidgets import QApplication, QMessageBox
+from PyQt5.QtWidgets import (QApplication, QDialog, QDialogButtonBox,
+                             QMessageBox, QTextEdit)
 
 from gui.gui_interface import JobMatchApp
 from jobmatch.dataclasses import Course, Instructor
@@ -134,10 +137,6 @@ def test_course_file(tmp_path):
     return excel_file_path
 
 
-
-
-
-# --------------- Testing load data logic --------------------
 
 # --------------- Testing load data logic --------------------
 
@@ -277,6 +276,48 @@ def test_theme_toggle(job_match_app):
     initial_theme = job_match_app.is_light_theme
     job_match_app.toggle_theme()
     assert job_match_app.is_light_theme != initial_theme
+
+
+
+def test_instructions_button(job_match_app, qtbot):
+    assert job_match_app.instructions_button is not None, "Instructions button does not exist"
+    assert job_match_app.instructions_button.isVisible(), "Instructions button is not visible"
+
+    # Click the button
+    qtbot.mouseClick(job_match_app.instructions_button, Qt.LeftButton)
+
+    # Process events
+    QTimer.singleShot(100, lambda: None)  # Add a small delay
+    QApplication.processEvents()
+
+    # Wait for the dialog to appear
+    qtbot.waitUntil(lambda: hasattr(job_match_app, 'instructions_dialog'), timeout=1000)
+
+    instructions_dialog = job_match_app.instructions_dialog
+    assert instructions_dialog is not None
+    assert instructions_dialog.isVisible()
+
+    # Check for specific text in the dialog
+    text_edit = instructions_dialog.findChild(QTextEdit)
+    assert text_edit is not None, "QTextEdit not found in instructions dialog"
+
+    # Check for the presence of correct title text
+    dialog_text = text_edit.toPlainText()
+    assert "Job Matching Tool - Instructions" in dialog_text, "Expected text not found in instructions dialog"
+
+    # Check for important pieces of text
+    assert all(text in dialog_text for text in ["instructor-agnostic", "Important Notes", "Operating Instructions"]), "Not all expected text found in instructions dialog"
+
+    # Find the OK button and simulate a click to close the dialog
+    ok_button = instructions_dialog.findChild(QDialogButtonBox).button(QDialogButtonBox.Ok)
+    qtbot.mouseClick(ok_button, Qt.LeftButton)
+
+    # Process events again
+    QTimer.singleShot(100, lambda: None)  # Add a small delay
+    QApplication.processEvents()
+
+    # Verify that the dialog is closed
+    assert not instructions_dialog.isVisible(), "Dialog should be closed after clicking OK button."
 
 
 def test_export_to_csv(job_match_app, tmp_path, mocker, qtbot):

@@ -3,10 +3,12 @@ import os
 from typing import List, Optional, Tuple, Union
 
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtWidgets import (QApplication, QComboBox, QFileDialog, QHBoxLayout,
+from PyQt5.QtWidgets import (QApplication, QComboBox, QDialog,
+                             QDialogButtonBox, QFileDialog, QHBoxLayout,
                              QLabel, QMainWindow, QMessageBox, QPushButton,
                              QTextEdit, QVBoxLayout, QWidget)
 
+from gui.app_instructions import INSTRUCTIONS_TEXT
 from gui.load_data import load_courses, load_instructors
 from jobmatch.global_functions import set_all_seeds
 from jobmatch.JobMatch import JobMatch
@@ -129,6 +131,7 @@ class JobMatchApp(QMainWindow):
         self.match_type = "Instructor Matches"  # Default match type
         self.matching_results = None  # To store the results after the first run
         self.job_match_instance = None  # To store the instance of JobMatch
+        self.instructions_dialog = None
         self.set_seed = set_all_seeds
 
         self.create_widgets()
@@ -211,11 +214,17 @@ class JobMatchApp(QMainWindow):
         self.toggle_theme_button.setStyleSheet("font-size: 16px;")
         right_layout_bottom.addWidget(self.toggle_theme_button)
 
+        # Add Instructions Button
+        self.instructions_button = QPushButton("Instructions", self)
+        self.instructions_button.setStyleSheet("font-size: 16px; font-weight: bold;")
+        layout.addWidget(self.instructions_button, alignment=QtCore.Qt.AlignCenter)
+
         # Connect signals to slots
         self.run_button.clicked.connect(self.run_matching)
         self.view_button.clicked.connect(self.view_matches)
         self.export_button.clicked.connect(self.export_results_to_csv)
         self.toggle_theme_button.clicked.connect(self.toggle_theme)
+        self.instructions_button.clicked.connect(self.show_instructions)
 
         # Set the default light theme
         self.apply_theme(light=True)
@@ -249,6 +258,27 @@ class JobMatchApp(QMainWindow):
             self.course_label.setStyleSheet("border: 1px solid white; background-color: #333333; color: white;")
             self.method_menu.setStyleSheet("font-size: 16px; padding: 4px;")
             self.match_type_menu.setStyleSheet("font-size: 16px; padding: 4px;")
+
+    def show_instructions(self) -> None:
+        if not self.instructions_dialog:
+            self.instructions_dialog = QDialog(self)
+            self.instructions_dialog.setWindowTitle("Instructions")
+            self.instructions_dialog.setMinimumWidth(850)
+            self.instructions_dialog.setMinimumHeight(850)
+
+            layout = QVBoxLayout(self.instructions_dialog)
+
+            text_edit = QTextEdit(self.instructions_dialog)
+            text_edit.setReadOnly(True)
+            text_edit.setHtml(INSTRUCTIONS_TEXT)
+            layout.addWidget(text_edit)
+
+            button_box = QDialogButtonBox(QDialogButtonBox.Ok)
+            button_box.accepted.connect(self.instructions_dialog.accept)
+            layout.addWidget(button_box)
+
+        self.instructions_dialog.show()  # show() instead of exec_()
+        return self.instructions_dialog
 
     def handle_file_drop(self, label: QLabel, file_path: str) -> None:
         """
