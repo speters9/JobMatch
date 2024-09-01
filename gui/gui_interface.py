@@ -313,6 +313,8 @@ class JobMatchApp(QMainWindow):
             except Exception as e:
                 print(f"Failed to load instructor file: {str(e)}")  # Debug statement
                 QMessageBox.critical(self, "Error", f"Failed to load instructor file: {str(e)}")
+                # reset to allow for resubmit
+                self.instructor_file = None
 
     def load_course_file(self, file_path: str) -> None:
         """
@@ -332,6 +334,8 @@ class JobMatchApp(QMainWindow):
             except Exception as e:
                 print(f"Failed to load course file: {str(e)}")  # Debug statement
                 QMessageBox.critical(self, "Error", f"Failed to load course file: {str(e)}")
+                # reset to allow for resubmit
+                self.course_file = None
 
     def run_matching(self) -> None:
         """Run the matching algorithm based on the selected method."""
