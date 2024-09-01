@@ -240,7 +240,7 @@ def test_successful_course_file_load(empty_job_match_app, qtbot, mocker, test_co
 ## ------------------------- test matching --------------------
 
 
-@pytest.mark.parametrize("method", ["bipartite_matching", "stable_marriage", "linear_programming"])
+@pytest.mark.parametrize("method", ["Bipartite Matching", "Stable Marriage", "Linear Programming"])
 def test_run_matching_with_mock_data(job_match_app, mocker, method, qtbot):
     """
     Test the matching process when valid mock data is loaded, the method is selected,

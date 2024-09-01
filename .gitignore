@@ -179,3 +179,6 @@ jobmatch_app.dist/
 jobmatch_app.build/
 **/jobmatch_app.exe
 app.log
+releases/
+releases/bipartite_network/
+images/bipartite_network/

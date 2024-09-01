@@ -143,6 +143,14 @@ class JobMatchApp(QMainWindow):
         self.setCentralWidget(central_widget)
         layout = QVBoxLayout(central_widget)  # Vertical layout for the main structure
 
+
+        # Add instructions button at the top
+        self.instructions_button = QPushButton("Instructions", self)
+        self.instructions_button.setStyleSheet("font-size: 16px;")
+        self.instructions_button.setFixedWidth(200)  # Make the button a bit wider
+        layout.addWidget(self.instructions_button, alignment=QtCore.Qt.AlignCenter)
+
+
         # Horizontal layout to contain the first row: top drag-and-drop box and dropdowns
         top_layout = QHBoxLayout()
         layout.addLayout(top_layout)
@@ -184,7 +192,7 @@ class JobMatchApp(QMainWindow):
         right_layout_top.addWidget(method_label)
 
         self.method_menu = CenteredComboBox(self, app=self)
-        self.method_menu.addItems(["bipartite_matching", "stable_marriage", "linear_programming"])
+        self.method_menu.addItems(["Bipartite Matching", "Stable Marriage", "Linear Programming"])
         self.method_menu.setStyleSheet("font-size: 16px; padding: 4px;")
         right_layout_top.addWidget(self.method_menu)
 
@@ -199,7 +207,7 @@ class JobMatchApp(QMainWindow):
 
         # Buttons (bottom right)
         self.run_button = QPushButton("Run Matching", self)
-        self.run_button.setStyleSheet("font-size: 16px;")
+        self.run_button.setStyleSheet("font-size: 16px; font-weight: bold;")
         right_layout_bottom.addWidget(self.run_button)
 
         self.view_button = QPushButton("Print Results", self)
@@ -213,12 +221,6 @@ class JobMatchApp(QMainWindow):
         self.toggle_theme_button = QPushButton("Toggle Theme", self)
         self.toggle_theme_button.setStyleSheet("font-size: 16px;")
         right_layout_bottom.addWidget(self.toggle_theme_button)
-
-        # Add Instructions Button
-        self.instructions_button = QPushButton("Instructions", self)
-        self.instructions_button.setStyleSheet("font-size: 16px; font-weight: bold;")
-        self.instructions_button.setFixedWidth(200)
-        layout.addWidget(self.instructions_button, alignment=QtCore.Qt.AlignCenter)
 
         # Connect signals to slots
         self.run_button.clicked.connect(self.run_matching)
@@ -349,11 +351,16 @@ class JobMatchApp(QMainWindow):
             QMessageBox.critical(self, "Error", "Instructors or Courses data not loaded. Please check the files.")
             return
 
+        method_dict = {"Bipartite Matching": "bipartite_matching",
+                       "Stable Marriage": "stable_marriage",
+                       "Linear Programming": "linear_programming"}
+
         self.set_seed(94305)
 
         try:
             self.job_match_instance = JobMatch(self.instructors, self.courses)
-            method = self.method_menu.currentText()  # Get the selected method from the dropdown
+            selected_method = self.method_menu.currentText()  # Get the selected method from the dropdown
+            method = method_dict.get(selected_method, "Matching Method Not Found")
             self.matching_results = self.job_match_instance.solve(method=method)  # Store the results
 
             QMessageBox.information(self, "Matching Results",
@@ -392,7 +399,11 @@ class JobMatchApp(QMainWindow):
         """
         result_lines = []
 
+        # Get the selected method and add it to the top of the results
+        selected_method = self.method_menu.currentText()
+
         if query == "instructor":
+            result_lines.append(f"<h3>Instructor Results: {selected_method}</h3><br>")
             for instructor in results:
                 course_list = ', '.join(instructor.assigned_courses)
                 ranks_list = ', '.join([
@@ -401,18 +412,31 @@ class JobMatchApp(QMainWindow):
                 ])
 
                 # Adjust the width percentages to expand the name and course fields
-                assignment_str = f"<tr><td style='width: 40%;'>{instructor.name}</td><td style='width: 50%;'>{course_list}</td><td style='width: 10%;'>Rank {ranks_list}</td></tr>"
+                assignment_str = (
+                    f"<tr>"
+                    f"<td style='width: 45%; padding-right: 30px;'>{instructor.name}</td>"
+                    f"<td style='width: 45%; padding-right: 30px;'>{course_list}</td>"
+                    f"<td style='width: 10%; padding-right: 30px;'>Rank {ranks_list}</td>"
+                    f"</tr>"
+                )
                 result_lines.append(assignment_str)
 
-            return f"<table>{''.join(result_lines)}</table>"
+            return f"<table style='width: 100%;'>{''.join(result_lines)}</table>"
 
         elif query == "course":
+            result_lines.append(f"<h3>Course Results: {selected_method}</h3><br>")
             for course in results:
                 instructors = ', '.join(course.assigned_instructors)
-                assignment_str = f"<tr><td style='width: 50%;'>{course.name}</td><td style='width: 50%;'>{instructors}</td></tr>"
+                assignment_str = (
+                    f"<tr>"
+                    f"<td style='width: 45%; padding-right: 30px;'>{course.name}</td>"
+                    f"<td style='width: 45%; padding-right: 30px;'>{instructors}</td>"
+                    f"</tr>"
+                )
                 result_lines.append(assignment_str)
 
-            return f"<table>{''.join(result_lines)}</table>"
+            return f"<table style='width: 100%;'>{''.join(result_lines)}</table>"
+
 
     def display_results_popup(self, text: str) -> None:
         """
