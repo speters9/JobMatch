@@ -214,7 +214,8 @@ def load_courses(file_path: str) -> list[Course]:
             name=row['course_name'],
             course_id=row['course_id'],
             course_description=row['course_description'],
-            sections_available=row['sections_available']
+            sections_available=row['sections_available'],
+            course_director=row['course_director'] if hasattr(row, 'course_director') else None
         ))
     return courses
 

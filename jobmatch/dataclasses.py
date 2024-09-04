@@ -16,15 +16,15 @@ class Instructor:
         if len(self.assigned_courses) >= self.max_classes:
             return False
 
-        if len(self.unique_courses) >= 2 and course not in self.unique_courses:
+        elif len(self.unique_courses) >= 2 and course not in self.unique_courses:
             return False
 
-        if self.degree and self.degree == 'mas':
+        elif self.degree and self.degree == 'mas':
             return True  # Adjust this based on specific courses master's degree holders can teach
             # Return True only if the course is in the specified allowed list for master's degree instructors
             #return course in ['PS211', 'PS211S', 'PS211FR', 'SocSci311', 'SocSci311S', 'SocSci212']
-
-        return True  # PhD instructors can teach any course
+        else:
+            return True  # PhD instructors can teach any course
 
     def assign_course(self, course: str, slots: int):
         """Assign the course to the instructor, ensuring it does not exceed max_classes."""
@@ -65,6 +65,7 @@ class Course:
     course_description: str
     sections_available: int
     assigned_instructors: List[str] = field(default_factory=list, compare=False)
+    course_director: str = None
 
     def print_assignments(self, skip_none=False):
         """Print the assigned instructors for the course."""

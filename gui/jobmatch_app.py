@@ -3,14 +3,16 @@ Run the app
 """
 
 import logging
+import os
 import sys
+import tempfile
 
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtWidgets import (QApplication, QLabel, QMainWindow, QMessageBox,
                              QProgressBar, QSplashScreen)
 
-from gui import resources_rc  # image bundled for easy
+from gui import resources_rc  # image bundled for easy loading
 from gui.gui_interface import JobMatchApp
 
 
@@ -66,6 +68,16 @@ class AppWithSplashScreen(QMainWindow):
             self.main_window = JobMatchApp()
             self.main_window.setWindowIcon(QIcon(self.icon_path))
             self.main_window.show()
+
+            # Remove the Nuitka splash screen
+            if "NUITKA_ONEFILE_PARENT" in os.environ:
+                splash_filename = os.path.join(
+                    tempfile.gettempdir(),
+                    "onefile_%d_splash_feedback.tmp" % int(os.environ["NUITKA_ONEFILE_PARENT"]),
+                )
+                if os.path.exists(splash_filename):
+                    os.unlink(splash_filename)
+
         except Exception as e:
             logging.error("Failed to start the main application.", exc_info=True)
             self.close()

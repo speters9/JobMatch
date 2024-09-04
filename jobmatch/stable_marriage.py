@@ -62,7 +62,7 @@ def stable_marriage_solver(instructors: List[Instructor],
 
     # Post-processing step: Assign unmatched instructors to available courses
     for instructor in instructors:
-        while len(instructor.assigned_courses) < instructor.max_classes:
+        if len(instructor.assigned_courses) < instructor.max_classes:
             available_courses = [course for course in courses if course.sections_available > 0]
 
             if not available_courses:
@@ -71,12 +71,14 @@ def stable_marriage_solver(instructors: List[Instructor],
             assigned = False  # Track whether an assignment was made
 
             for course in available_courses:
-                if instructor.can_teach(course.name):
-                    instructor.assign_course(course.name, 1)
-                    course.assigned_instructors.append(instructor.name)
-                    course.sections_available -= 1
-                    assigned = True
-                    break  # Exit the for loop once an assignment is made
+                available_slots = min(instructor.max_classes - len(instructor.assigned_courses), course.sections_available)
+                if available_slots > 0:
+                    if instructor.can_teach(course.name):
+                        instructor.assign_course(course.name, available_slots)
+                        course.assigned_instructors.extend([instructor.name] * available_slots)
+                        course.sections_available -= available_slots
+                        assigned = True
+                        break  # Exit the for loop once an assignment is made
 
             if not assigned:
                 break  # Exit the while loop if no valid assignment could be made

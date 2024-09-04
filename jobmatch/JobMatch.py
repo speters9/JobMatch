@@ -1,14 +1,23 @@
 import copy
+import logging
 from typing import Callable, Dict, List, Optional, Tuple
 
 import networkx as nx
 
+from gui.load_data import load_courses, load_instructors
 from jobmatch.bipartite_graph_match import bipartite_matching_solver
 from jobmatch.dataclasses import Course, Instructor
 from jobmatch.linear_program_optimization import \
     iterative_linear_programming_solver
 from jobmatch.preprocessing import create_preference_tuples, parse_preferences
 from jobmatch.stable_marriage import stable_marriage_solver
+
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s',
+                    handlers=[
+                        logging.FileHandler("app.log"),
+                        logging.StreamHandler()  # This will print to the console
+                    ])
 
 # %%
 
@@ -57,8 +66,31 @@ class JobMatch:
         The order of instructors in the `individuals` dictionary impacts their priority in course selection,
             with those listed earlier being given higher priority.
         """
-        self.instructors = instructors
-        self.courses = courses
+        self.raw_instructors = instructors
+        self.raw_courses = courses
+        self.instructors, self.courses = self.match_course_directors(self.raw_instructors, self.raw_courses)
+
+    def match_course_directors(self, instructors,courses):
+        updated_courses = []
+        updated_instructors = [inst for inst in instructors]  # Shallow copy of instructors
+
+        for course in courses:
+            if course.course_director:
+                director = next((inst for inst in updated_instructors if inst.name == course.course_director), None)
+                if director:
+                    # Greedily assign as many sections as possible to the director
+                    available_sections = min(director.max_classes - len(director.assigned_courses), course.sections_available)
+
+                    if available_sections > 0:
+                        # Assign the director to the course for the available sections
+                        course.assigned_instructors.extend([director.name] * available_sections)
+                        course.sections_available -= available_sections
+                        director.assign_course(course.name, available_sections)
+                        logging.info(f"{director.name} assigned as course director for {course.name}")
+
+            updated_courses.append(course)
+
+        return updated_instructors, updated_courses
 
     def rank_order_preferences(self):
         """Generate preference tuples for instructors."""
@@ -188,27 +220,9 @@ if __name__ == "__main__":
                                         print_matching_results)
     wd = here()
 
-    # load preferences df and order by instructor importance
-    pref_df = pd.read_excel(wd / "data/raw/Teaching_Preferences_cao21Aug.xlsx")
-    pref_df = pref_df.set_index('Name')
-    pref_df = pref_df.reindex(instructor_max.keys()).reset_index()
 
-    course_df = pd.read_csv(wd / "data/raw/course_data.csv")
-    inst_df = pd.read_csv(wd / "data/raw/instructor_info.csv")
-
-    # get individual preferences from free response, add in core preferences last, if not included
-    individuals = {}
-    for item in pref_df.itertuples():
-        name = item[1]
-        core_class = core_dict.get(item[6], 'PS211')
-        prefs = item[7]
-        if not pd.isna(prefs):
-            individuals[name] = parse_preferences(prefs, course_id_map, course_map, core_class)
-        else:
-            continue
-
-    instructor_list = build_instructors(inst_df, individuals)
-    course_list = build_courses(course_df)
+    instructor_list = load_instructors(str(wd / "data/validate/instructors_with_preferences.csv"))
+    course_list = load_courses(str(wd / "data/validate/course_data_with_course_directors.csv"))
 
     # Create a solver factory
     factory = JobMatch(instructor_list, course_list)

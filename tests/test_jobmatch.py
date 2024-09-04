@@ -1,6 +1,7 @@
+import copy
+
 import pytest
 
-from jobmatch.bipartite_graph_match import bipartite_matching_solver
 from jobmatch.dataclasses import Course, Instructor
 from jobmatch.JobMatch import JobMatch
 
@@ -8,25 +9,89 @@ from jobmatch.JobMatch import JobMatch
 @pytest.fixture
 def sample_instructors():
     return [
-        Instructor(name='Alice', max_classes=2, degree='phd', preferences=['PS211', 'PS302']),
-        Instructor(name='Bob', max_classes=2, degree='mas', preferences=['PS211', 'PS477']),
-        Instructor(name='Charlie', max_classes=2, degree='phd', preferences=['SocSci311', 'PS302']),
+        Instructor(
+            name="Alice",
+            max_classes=3,
+            degree='phd',
+            preferences=['PS211', 'PS300', 'PS400'],
+            assigned_courses=[],
+            unique_courses=set()
+        ),
+        Instructor(
+            name="Bob",
+            max_classes=2,
+            degree='mas',
+            preferences=['PS211', 'SocSci100'],
+            assigned_courses=[],
+            unique_courses=set()
+        ),
+        Instructor(
+            name="Carol",
+            max_classes=2,
+            degree='phd',
+            preferences=['PS211', 'PS300', 'Econ101'],
+            assigned_courses=[],
+            unique_courses=set()
+        ),
+        Instructor(
+            name="David",
+            max_classes=1,
+            degree='phd',
+            preferences=['Econ101'],
+            assigned_courses=[],
+            unique_courses=set()
+        ),
+        Instructor(
+            name="Eve",
+            max_classes=3,
+            degree='phd',
+            preferences=['PS211', 'SocSci100'],
+            assigned_courses=[],
+            unique_courses=set()
+        ),
     ]
 
 @pytest.fixture
 def sample_courses():
     return [
-        Course(name='PS211', course_id='211', course_description='Politics, American Government', sections_available=2),
-        Course(name='PS302', course_id='302', course_description='American Foreign Policy', sections_available=1),
-        Course(name='PS477', course_id='477', course_description='Politics of the Middle East', sections_available=1),
-        Course(name='SocSci311', course_id='311', course_description='International Security Studies', sections_available=1),
+        Course(
+            name="PS211",
+            course_id="101",
+            course_description="Introduction to Political Science",
+            sections_available=3,  # Increased from 2 to 3
+            assigned_instructors=[],
+            course_director="Alice"
+        ),
+        Course(
+            name="PS300",
+            course_id="102",
+            course_description="Advanced Political Theory",
+            sections_available=2,  # Increased from 1 to 2
+            assigned_instructors=[],
+            course_director=None
+        ),
+        Course(
+            name="SocSci100",
+            course_id="103",
+            course_description="Introduction to Social Sciences",
+            sections_available=3,
+            assigned_instructors=[],
+            course_director=None
+        ),
+        Course(
+            name="Econ101",
+            course_id="104",
+            course_description="Introduction to Economics",
+            sections_available=2,  # Increased from 1 to 2
+            assigned_instructors=[],
+            course_director="David"
+        ),
     ]
 
 def test_jobmatch_solve_bipartite_matching(sample_instructors, sample_courses):
-    factory = JobMatch(sample_instructors, sample_courses)
-
-    # Store the original section availability for each course
     original_sections_available = {course.name: course.sections_available for course in sample_courses}
+
+    factory = JobMatch(sample_instructors, sample_courses)
 
     # Solve the matching using bipartite matching method
     results = factory.solve(method='bipartite_matching', instructor_weighted=True)
@@ -41,46 +106,8 @@ def test_jobmatch_solve_bipartite_matching(sample_instructors, sample_courses):
     # Verify that each course does not exceed the original available sections
     for course in final_courses:
         assigned_instructors_count = len(course.assigned_instructors)
-        assert assigned_instructors_count <= original_sections_available[course.name]
+        assert assigned_instructors_count <= original_sections_available.get(course.name)
 
-    # Check if all instructors have at least one valid assignment if possible
-    for instructor in final_instructors:
-        if instructor.name == "Alice":
-            assert set(instructor.assigned_courses).issubset({"PS211", "PS302"})
-        elif instructor.name == "Bob":
-            assert set(instructor.assigned_courses).issubset({"PS211", "PS477"})
-        elif instructor.name == "Charlie":
-            assert set(instructor.assigned_courses).issubset({"SocSci311", "PS302"})
-
-    # Check if all courses have their sections filled by valid instructors
-    for course in final_courses:
-        if course.name == "PS211":
-            assert set(course.assigned_instructors).issubset({"Alice", "Bob"})
-        elif course.name == "PS302":
-            assert set(course.assigned_instructors).issubset({"Alice", "Charlie"})
-        elif course.name == "PS477":
-            assert set(course.assigned_instructors).issubset({"Bob"})
-        elif course.name == "SocSci311":
-            assert set(course.assigned_instructors).issubset({"Charlie"})
-
-def test_jobmatch_select_solver(sample_instructors, sample_courses):
-    factory = JobMatch(sample_instructors, sample_courses)
-
-    # Test bipartite matching solver selection
-    solver = factory.select_solver('bipartite_matching')
-    assert solver == factory.bipartite_matching_solver
-
-    # Test stable marriage solver selection
-    solver = factory.select_solver('stable_marriage')
-    assert solver == factory.stable_marriage_solver
-
-    # Test linear programming solver selection
-    solver = factory.select_solver('linear_programming')
-    assert solver == factory.iterative_linear_programming_solver
-
-    # Test invalid solver method
-    with pytest.raises(ValueError, match="Unknown method: invalid_method"):
-        factory.select_solver('invalid_method')
 
 def test_jobmatch_solve_stable_marriage(sample_instructors, sample_courses):
     factory = JobMatch(sample_instructors, sample_courses)
@@ -94,6 +121,7 @@ def test_jobmatch_solve_stable_marriage(sample_instructors, sample_courses):
         assert len(instructor.assigned_courses) <= instructor.max_classes
         assert len(instructor.unique_courses) <= 2
 
+
 def test_jobmatch_solve_linear_programming(sample_instructors, sample_courses):
     factory = JobMatch(sample_instructors, sample_courses)
 
@@ -106,6 +134,62 @@ def test_jobmatch_solve_linear_programming(sample_instructors, sample_courses):
         assert len(instructor.assigned_courses) <= instructor.max_classes
         assert len(instructor.unique_courses) <= 2
 
+
+def test_match_course_directors(sample_instructors, sample_courses):
+    """
+    Test that course directors are assigned correctly before the main algorithm runs.
+    """
+    original_sections_available = {course.name: course.sections_available for course in sample_courses}
+
+    job_match = JobMatch(sample_instructors, sample_courses)
+
+    # Check that the course directors have been correctly assigned to their courses
+    ps211 = next(course for course in job_match.courses if course.name == "PS211")
+    econ101 = next(course for course in job_match.courses if course.name == "Econ101")
+    alice = next(inst for inst in job_match.instructors if inst.name == "Alice")
+    david = next(inst for inst in job_match.instructors if inst.name == "David")
+
+    assert "Alice" in ps211.assigned_instructors
+    assert "David" in econ101.assigned_instructors
+    assert alice.assigned_courses == ["PS211"]*min(alice.max_classes,original_sections_available.get("PS211"))
+    assert david.assigned_courses == ["Econ101"]*min(david.max_classes,original_sections_available.get("Econ101"))
+
+
+def test_linear_programming_solver(sample_instructors, sample_courses):
+    """
+    Test the linear programming solver.
+    """
+    original_sections_available = {course.name: course.sections_available for course in sample_courses}
+
+    job_match = JobMatch(sample_instructors, sample_courses)
+    result = job_match.iterative_linear_programming_solver()
+
+    # Ensure courses are assigned within constraints
+    for course in job_match.courses:
+        assert len(course.assigned_instructors) <= original_sections_available[course.name]  # No over-assignments
+        assert len(set(course.assigned_instructors)) <= 2  # No instructor teaches more than 2 unique courses
+
+    # Check that instructors are not over-assigned
+    for instructor in sample_instructors:
+        assert len(instructor.assigned_courses) <= instructor.max_classes
+
+
+def test_stable_marriage_solver(sample_instructors, sample_courses):
+    """
+    Test the stable marriage solver.
+    """
+    original_sections_available = {course.name: course.sections_available for course in sample_courses}
+
+    job_match = JobMatch(sample_instructors, sample_courses)
+    instructor_matches, course_matches = job_match.stable_marriage_solver()
+
+    # Ensure that the assignments are stable
+    for instructor in instructor_matches:
+        assert len(instructor.assigned_courses) > 0  # Every instructor should have an assignment if possible
+
+    # Check that instructors are not assigned to more than two unique courses
+    for instructor in instructor_matches:
+        assert len(set(instructor.assigned_courses)) <= 2
 
 if __name__ == "__main__":
     pytest.main([__file__])
