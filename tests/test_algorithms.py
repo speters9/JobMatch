@@ -110,7 +110,7 @@ def test_iterative_linear_programming_solver(sample_instructors, sample_courses)
     original_sections_available = {course.name: course.sections_available for course in sample_courses}
 
     instructor_assignments, course_assignments = iterative_linear_programming_solver(
-        sample_instructors, sample_courses, method='default'
+        sample_instructors, sample_courses
     )
 
     # Check that no instructor exceeds their max_classes

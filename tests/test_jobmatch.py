@@ -125,7 +125,7 @@ def test_jobmatch_solve_stable_marriage(sample_instructors, sample_courses):
 def test_jobmatch_solve_linear_programming(sample_instructors, sample_courses):
     factory = JobMatch(sample_instructors, sample_courses)
 
-    results = factory.solve(method='linear_programming', lp_method='default')
+    results = factory.solve(method='linear_programming')
     assert len(results) == 2  # (instructors, courses)
     final_instructors, final_courses = results
 

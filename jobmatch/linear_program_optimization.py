@@ -1,4 +1,3 @@
-import copy
 from pathlib import Path
 from typing import List, Tuple
 
@@ -9,15 +8,14 @@ from jobmatch.preprocessing import create_preference_tuples
 
 # %%
 
-
 def iterative_linear_programming_solver(
     instructors: List[Instructor],
     courses: List[Course],
-    method: str = 'default',
     verbose: bool = False
 ) -> Tuple[List[Instructor], List[Course]]:
     """
-    Solve the matching problem using linear programming with iterative assignments.
+    Solve the matching problem using linear programming with iterative assignments
+    and factorized instructor sections.
 
     Args:
         instructors (List[Instructor]): A list of Instructor objects.
@@ -29,33 +27,41 @@ def iterative_linear_programming_solver(
         Tuple[List[Instructor], List[Course]]: The updated lists of Instructor and Course objects with assignments.
     """
     iter_count = 0
+    instructor_sections = []
+    section_to_instructor_map = {}
+
+    # Factorize instructors into individual sections
+    for instructor in instructors:
+        for i in range(instructor.max_classes):
+            section_name = f"{instructor.name}_section_{i+1}"
+            instructor_sections.append(section_name)
+            section_to_instructor_map[section_name] = instructor
 
     while True:
         iter_count += 1
 
-        # Filter out instructors who have already reached their max classes or unique course limit
-        eligible_instructors = [
-            instructor for instructor in instructors
-            if len(instructor.assigned_courses) < instructor.max_classes and len(instructor.unique_courses) < 2
+        # Filter out instructor sections that are already fully assigned or have reached unique course limit
+        eligible_instructor_sections = [
+            section for section in instructor_sections
+            if len(section_to_instructor_map[section].assigned_courses) < section_to_instructor_map[section].max_classes
+            and len(section_to_instructor_map[section].unique_courses) < 2
         ]
         eligible_courses = [course for course in courses if course.sections_available > 0]
 
-        # If no eligible instructors or courses remain, stop the loop
-        if not eligible_instructors or not eligible_courses:
-            print(f"Linear Programming: Convergence after {iter_count} iterations")
+        # If no eligible instructor sections or courses remain, stop the loop
+        if not eligible_instructor_sections or not eligible_courses:
             break
 
         # Create preference tuples for the current iteration
         preference_tuples = {
-            instructor.name: create_preference_tuples([instructor], eligible_courses)[instructor.name]
-            for instructor in eligible_instructors
+            section: create_preference_tuples([section_to_instructor_map[section]], eligible_courses)[section_to_instructor_map[section].name]
+            for section in eligible_instructor_sections
         }
 
         # Rebuild LP variables for choices
         choices = pulp.LpVariable.dicts(
             "Choice",
-            ((instructor.name, course.name)
-             for instructor in eligible_instructors for course in eligible_courses),
+            ((section, course.name) for section in eligible_instructor_sections for course in eligible_courses),
             cat='Binary'
         )
         if verbose:
@@ -67,51 +73,29 @@ def iterative_linear_programming_solver(
         # Define the primary and secondary objectives based on the current iteration's data
         max_rank = len(courses)
 
-        if method == 'default':
-            prob += pulp.lpSum(
-                # incorporate preference order as well, so big conditional statement,
-                # iterating through instructors, and then their preferences to get the ranking
-                # in order to weight each matching
-                choices[instructor.name, pref.course] * (max_rank + 1 - pref.rank)
-                for instructor in eligible_instructors
-                if instructor.name in preference_tuples and preference_tuples[instructor.name]
-                for pref in preference_tuples[instructor.name]
-                if pref.course in [course.name for course in eligible_courses]
+        prob += pulp.lpSum(
+            choices[section, pref.course] * (max_rank + 1 - pref.rank)
+            for section in eligible_instructor_sections
+            if section in preference_tuples and preference_tuples[section]
+            for pref in preference_tuples[section]
+            if pref.course in [course.name for course in eligible_courses]
             )
 
-        elif method == 'multi_objective':
-            PRIMARY_WEIGHT = 1000
-            SECONDARY_WEIGHT = 1
-            prob += (
-                PRIMARY_WEIGHT * pulp.lpSum(
-                    choices[instructor.name, pref.course] * (max_rank + 1 - pref.rank)
-                    for instructor in eligible_instructors
-                    if instructor.name in preference_tuples and preference_tuples[instructor.name]
-                    for pref in preference_tuples[instructor.name]
-                    if pref.course in [course.name for course in eligible_courses]
-                ) +
-                SECONDARY_WEIGHT * pulp.lpSum(
-                    choices[instructor.name, pref.course] * (len(eligible_instructors) - eligible_instructors.index(instructor))
-                    for instructor in eligible_instructors
-                    if instructor.name in preference_tuples and preference_tuples[instructor.name]
-                    for pref in preference_tuples[instructor.name]
-                    if pref.course in [course.name for course in eligible_courses]
-                )
-            )
 
         # Add constraints
-        for instructor in eligible_instructors:
+        for section in eligible_instructor_sections:
+            instructor = section_to_instructor_map[section]
             prob += pulp.lpSum(
-                choices[instructor.name, course.name] for course in eligible_courses
-            ) <= instructor.max_classes - len(instructor.assigned_courses)
+                choices[section, course.name] for course in eligible_courses
+            ) <= 1
 
             prob += pulp.lpSum(
-                choices[instructor.name, course.name] for course in eligible_courses if course.name in instructor.unique_courses or len(instructor.unique_courses) < 2
+                choices[section, course.name] for course in eligible_courses if course.name in instructor.unique_courses or len(instructor.unique_courses) < 2
             ) <= 2 - len(instructor.unique_courses)
 
         for course in eligible_courses:
             prob += pulp.lpSum(
-                choices[instructor.name, course.name] for instructor in eligible_instructors
+                choices[section, course.name] for section in eligible_instructor_sections
             ) <= course.sections_available
 
         # Solve the LP problem
@@ -119,15 +103,16 @@ def iterative_linear_programming_solver(
 
         assignments_made = False
 
-        for instructor in eligible_instructors:
+        for section in eligible_instructor_sections:
             assigned_courses = [
-                course.name for course in eligible_courses if pulp.value(choices[instructor.name, course.name]) == 1
+                course.name for course in eligible_courses if pulp.value(choices[section, course.name]) == 1
             ]
 
+            instructor = section_to_instructor_map[section]
             for course_name in assigned_courses:
                 course = next(crs for crs in eligible_courses if crs.name == course_name)
                 if instructor.can_teach(course_name):
-                    available_slots = min(instructor.max_classes - len(instructor.assigned_courses), course.sections_available)
+                    available_slots = min(1, course.sections_available)
                     if available_slots > 0:
                         instructor.assign_course(course_name, available_slots)
                         course.assigned_instructors.extend([instructor.name] * available_slots)
@@ -141,12 +126,12 @@ def iterative_linear_programming_solver(
         if not assignments_made:
             break
 
-     # Post-processing step: Assign unassigned courses to available instructors
+    # Post-processing step: Assign unassigned courses to available instructors
     for course in courses:
         while course.sections_available > 0:
             available_instructors = [
-                instructor for instructor in instructors
-                if len(instructor.assigned_courses) < instructor.max_classes and instructor.can_teach(course.name)
+                section_to_instructor_map[section] for section in instructor_sections
+                if len(section_to_instructor_map[section].assigned_courses) < section_to_instructor_map[section].max_classes and section_to_instructor_map[section].can_teach(course.name)
             ]
             if not available_instructors:
                 break  # No instructors left to assign
@@ -161,6 +146,8 @@ def iterative_linear_programming_solver(
     print(f"Linear Programming: Convergence after {iter_count} iterations")
 
     return instructors, courses
+
+
 
 # %%
 if __name__ == "__main__":
@@ -197,7 +184,7 @@ if __name__ == "__main__":
     course_list = build_courses(course_df)
 
     # Solve using bipartite matching
-    final_instructors, final_courses = iterative_linear_programming_solver(instructor_list, course_list, verbose = False, method='default')
+    final_instructors, final_courses = iterative_linear_programming_solver(instructor_list, course_list, verbose = False)
 
     print("\nInstructor assignments")
     # Print instructor assignments and ranks

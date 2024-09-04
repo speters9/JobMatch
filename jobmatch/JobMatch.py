@@ -153,7 +153,7 @@ class JobMatch:
         # Call the stable marriage solution logic
         return bipartite_matching_solver(instructors, courses, instructor_weighted=instructor_weighted)
 
-    def iterative_linear_programming_solver(self, lp_method: str = 'default') -> Tuple[Dict[str, str], Dict[str, int]]:
+    def iterative_linear_programming_solver(self) -> Tuple[Dict[str, str], Dict[str, int]]:
         """Solve the matching problem using linear programming.
 
         Args:
@@ -171,7 +171,7 @@ class JobMatch:
         courses = copy.deepcopy(self.courses)
 
         # Call the linear programming solution logic
-        return iterative_linear_programming_solver(instructors, courses, method=lp_method)
+        return iterative_linear_programming_solver(instructors, courses)
 
     def solve(self, method: str, **kwargs) -> Tuple:
         """Main entry point for solving the matching problem with the selected method.
@@ -245,7 +245,7 @@ if __name__ == "__main__":
 
     # Solve using linear programming
     print("Test on real preferences: linear programming\n")
-    matches_lp = factory.solve(method='linear_programming', lp_method='default')
+    matches_lp = factory.solve(method='linear_programming')
     factory.print_match_results(matches_lp[0])
     factory.print_match_results(matches_lp[1])
     print("")
