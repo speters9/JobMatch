@@ -154,6 +154,7 @@ if __name__ == "__main__":
     import pandas as pd
     from pyprojroot.here import here
 
+    from gui.load_data import load_courses, load_instructors
     from jobmatch.class_data import (core_dict, course_id_map, course_map,
                                      instructor_max)
     from jobmatch.preprocessing import (build_courses, build_instructors,
@@ -161,27 +162,10 @@ if __name__ == "__main__":
                                         parse_preferences)
     wd = here()
 
-    # load preferences df and order by instructor importance
-    pref_df = pd.read_excel(wd / "data/raw/Teaching_Preferences_cao21Aug.xlsx")
-    pref_df = pref_df.set_index('Name')
-    pref_df = pref_df.reindex(instructor_max.keys()).reset_index()
 
-    course_df = pd.read_csv(wd / "data/raw/course_data.csv")
-    inst_df = pd.read_csv(wd / "data/raw/instructor_info.csv")
+    instructor_list = load_instructors(str(wd / "data/validate/instructors_with_preferences.csv"))
+    course_list = load_courses(str(wd / "data/validate/course_data_with_course_directors.csv"))
 
-    # get individual preferences from free response, add in core preferences last, if not included
-    individuals = {}
-    for item in pref_df.itertuples():
-        name = item[1]
-        core_class = core_dict.get(item[6], 'PS211' if not item[0]==0 else item[7])
-        prefs = item[7]
-        if not pd.isna(prefs):
-            individuals[name] = parse_preferences(prefs, course_id_map, course_map, core_class)
-        else:
-            continue
-
-    instructor_list = build_instructors(inst_df, individuals)
-    course_list = build_courses(course_df)
 
     # Solve using bipartite matching
     final_instructors, final_courses = iterative_linear_programming_solver(instructor_list, course_list, verbose = False)

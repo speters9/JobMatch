@@ -30,6 +30,7 @@ isort = "^5.13.2"
 nuitka = "^2.4.7"
 pytest-qt = "^4.4.0"
 pytest-mock = "^3.14.0"
+tqdm = "^4.66.5"
 
 
 [[tool.poetry.source]]
