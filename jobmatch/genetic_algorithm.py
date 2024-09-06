@@ -1,4 +1,5 @@
 import random
+import time
 from typing import Callable, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -209,6 +210,9 @@ def genetic_algorithm(instructors: List[Instructor], courses: List[Course], max_
             new_population.extend([child1, child2])
 
         population = new_population
+
+        if generation % 50 == 0:
+            time.sleep(0)  # Yield control to other threads
 
     final_fitness_scores = [fitness_function(chromosome, instructors, courses,
                                              max_sections, max_unique_classes) for chromosome in population]
