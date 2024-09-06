@@ -3,6 +3,7 @@ import os
 from typing import List, Optional, Tuple, Union
 
 from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtCore import QObject, QThread, pyqtSignal
 from PyQt5.QtWidgets import (QApplication, QComboBox, QDialog,
                              QDialogButtonBox, QFileDialog, QHBoxLayout,
                              QLabel, QMainWindow, QMessageBox, QPushButton,
@@ -12,6 +13,43 @@ from gui.app_instructions import INSTRUCTIONS_TEXT
 from gui.load_data import load_courses, load_instructors
 from jobmatch.global_functions import set_all_seeds
 from jobmatch.JobMatch import JobMatch
+
+
+# Genetic algorithm-specific class for updating progress bar by running in separate thread
+class Worker(QObject):
+    finished = pyqtSignal()
+    progress = pyqtSignal(int)
+    result_signal = pyqtSignal(object)  # Signal to emit results back to the main thread
+
+    def __init__(self, job_match_instance: JobMatch, method: str) -> None:
+        """
+        Initialize the Worker class with the JobMatch instance and method.
+
+        Args:
+            job_match_instance (JobMatch): The JobMatch instance to run the matching algorithm.
+            method (str): The selected matching method.
+        """
+        super().__init__()
+        self.job_match_instance = job_match_instance
+        self.method = method
+
+
+    def run(self):
+        """Run the matching algorithm in a separate thread."""
+        try:
+            def update_progress(value):
+                self.progress.emit(value)  # Emit progress signal to update the progress bar
+
+            # Run the matching algorithm and capture the results
+            result = self.job_match_instance.solve(
+                method=self.method,
+                progress_callback=update_progress
+            )
+
+            # Emit the result signal to return the results to the main thread
+            self.result_signal.emit(result)
+        finally:
+            self.finished.emit()  # Signal that the process is finished
 
 
 class DnDLabel(QLabel):
@@ -115,6 +153,8 @@ class JobMatchApp(QMainWindow):
         job_match_instance (Optional[JobMatch]): Store the instance of JobMatch.
     """
 
+    progress_signal = QtCore.pyqtSignal(int)  # Signal for progress updates
+
     def __init__(self) -> None:
         """Initialize the JobMatchApp."""
         super().__init__()
@@ -133,7 +173,6 @@ class JobMatchApp(QMainWindow):
         self.job_match_instance = None  # To store the instance of JobMatch
         self.instructions_dialog = None
         self.set_seed = set_all_seeds
-
         self.create_widgets()
 
     def create_widgets(self) -> None:
@@ -143,13 +182,11 @@ class JobMatchApp(QMainWindow):
         self.setCentralWidget(central_widget)
         layout = QVBoxLayout(central_widget)  # Vertical layout for the main structure
 
-
         # Add instructions button at the top
         self.instructions_button = QPushButton("Instructions", self)
         self.instructions_button.setStyleSheet("font-size: 16px;")
         self.instructions_button.setFixedWidth(200)  # Make the button a bit wider
         layout.addWidget(self.instructions_button, alignment=QtCore.Qt.AlignCenter)
-
 
         # Horizontal layout to contain the first row: top drag-and-drop box and dropdowns
         top_layout = QHBoxLayout()
@@ -163,9 +200,10 @@ class JobMatchApp(QMainWindow):
         left_layout_top = QVBoxLayout()
         top_layout.addLayout(left_layout_top)
 
-        # Right layout for dropdowns
+        # Right layout for dropdowns and Run button (more centered)
         right_layout_top = QVBoxLayout()
-        right_layout_top.setSpacing(0)  # Reduce the spacing between the label and dropdown
+        right_layout_top.setSpacing(10)  # Adjust spacing between the label, dropdown, and button
+        right_layout_top.setContentsMargins(10, 30, 10, 30)  # Add margin to raise the elements up
         top_layout.addLayout(right_layout_top)
 
         # Left layout for bottom drag-and-drop box
@@ -174,6 +212,8 @@ class JobMatchApp(QMainWindow):
 
         # Right layout for buttons
         right_layout_bottom = QVBoxLayout()
+        right_layout_bottom.setSpacing(10)  # Adjust spacing between the label, dropdown, and button
+        right_layout_bottom.setContentsMargins(10, -10, 10, 0)
         bottom_layout.addLayout(right_layout_bottom)
 
         # Instructor file drop area (top left)
@@ -188,27 +228,27 @@ class JobMatchApp(QMainWindow):
 
         # Labels and Dropdowns (top right)
         method_label = QLabel("Select Matching Algorithm:", self)
-        method_label.setStyleSheet("font-size: 16px; margin-bottom: 5px;")
+        method_label.setStyleSheet("font-size: 16px; padding: 4px;")
         right_layout_top.addWidget(method_label)
 
         self.method_menu = CenteredComboBox(self, app=self)
-        self.method_menu.addItems(["Bipartite Matching", "Stable Marriage", "Linear Programming"])
+        self.method_menu.addItems(["Bipartite Matching", "Stable Marriage", "Linear Programming", "Genetic Algorithm"])
         self.method_menu.setStyleSheet("font-size: 16px; padding: 4px;")
         right_layout_top.addWidget(self.method_menu)
 
+        self.run_button = QPushButton("Run Matching", self)
+        self.run_button.setStyleSheet("font-size: 16px; font-weight: bold; padding: 4px; margin-bottom: 5px; margin-top: 15px;")
+        right_layout_top.addWidget(self.run_button)
+
+        # Buttons (bottom right)
         match_type_label = QLabel("Select Print Option:", self)
         match_type_label.setStyleSheet("font-size: 16px; margin-bottom: 5px; margin-top: 15px;")
-        right_layout_top.addWidget(match_type_label)
+        right_layout_bottom.addWidget(match_type_label)
 
         self.match_type_menu = CenteredComboBox(self, app=self)
         self.match_type_menu.addItems(["Instructor Matches", "Course Matches"])
         self.match_type_menu.setStyleSheet("font-size: 16px; padding: 4px;")
-        right_layout_top.addWidget(self.match_type_menu)
-
-        # Buttons (bottom right)
-        self.run_button = QPushButton("Run Matching", self)
-        self.run_button.setStyleSheet("font-size: 16px; font-weight: bold;")
-        right_layout_bottom.addWidget(self.run_button)
+        right_layout_bottom.addWidget(self.match_type_menu)
 
         self.view_button = QPushButton("Print Results", self)
         self.view_button.setStyleSheet("font-size: 16px;")
@@ -229,9 +269,28 @@ class JobMatchApp(QMainWindow):
         self.toggle_theme_button.clicked.connect(self.toggle_theme)
         self.instructions_button.clicked.connect(self.show_instructions)
 
+        # Create progress bar to show the progress of the matching
+        self.progress_bar = QtWidgets.QProgressBar(self)
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setVisible(False)
+        layout.addWidget(self.progress_bar)
+
         # Set the default light theme
         self.apply_theme(light=True)
 
+    # ------- progress bar specific methods for genetic algorithm --------
+    def store_results(self, results):
+        """Store the results emitted from the worker thread."""
+        self.matching_results = results
+        QMessageBox.information(self, "Matching Results",
+                                "Matching completed successfully! \nUse the dropdown and 'Print Results' button to view results.")
+
+    def update_progress_bar(self, value: int) -> None:
+        """Update the progress bar with the given value."""
+        self.progress_bar.setValue(value)
+
+    # ---------------------------------------------------------------------
     def toggle_theme(self) -> None:
         """Toggle between light and dark themes."""
         current_style = self.styleSheet()
@@ -340,31 +399,55 @@ class JobMatchApp(QMainWindow):
                 self.course_file = None
 
     def run_matching(self) -> None:
-        """Run the matching algorithm based on the selected method."""
+        """
+        Execute the matching algorithm based on the selected method and handle progress updates
+        when using the genetic algorithm. Shows appropriate messages to the user.
+        """
         if not self.instructor_file or not self.course_file:
             QMessageBox.critical(self, "Error", "Please load both instructor and course files before running the matching.")
             return
 
-        # Check if instructors and courses are actually loaded
-        if not self.instructors or not self.courses:
-            print("Instructors or Courses data not loaded!")  # Debug statement
-            QMessageBox.critical(self, "Error", "Instructors or Courses data not loaded. Please check the files.")
-            return
-
-        method_dict = {"Bipartite Matching": "bipartite_matching",
-                       "Stable Marriage": "stable_marriage",
-                       "Linear Programming": "linear_programming"}
+        method_dict = {
+            "Bipartite Matching": "bipartite_matching",
+            "Stable Marriage": "stable_marriage",
+            "Linear Programming": "linear_programming",
+            "Genetic Algorithm": "genetic_algorithm"
+        }
 
         self.set_seed(94305)
 
         try:
             self.job_match_instance = JobMatch(self.instructors, self.courses)
-            selected_method = self.method_menu.currentText()  # Get the selected method from the dropdown
-            method = method_dict.get(selected_method, "Matching Method Not Found")
-            self.matching_results = self.job_match_instance.solve(method=method)  # Store the results
+            selected_method = self.method_menu.currentText()
+            method = method_dict.get(selected_method)
 
-            QMessageBox.information(self, "Matching Results",
-                                    "Matching completed successfully! \nUse the dropdown and 'Print Results' button to view results.")
+            if method == "genetic_algorithm":
+                # Step 1: Show progress bar and reset it
+                self.progress_bar.setVisible(True)
+                self.progress_bar.setValue(0)
+
+                # Step 2: Create a QThread and Worker to run the algorithm
+                self.worker_thread = QThread()
+                self.worker = Worker(self.job_match_instance, method)
+                self.worker.moveToThread(self.worker_thread)
+
+                # Step 3: Connect signals
+                self.worker_thread.started.connect(self.worker.run)
+                self.worker.progress.connect(self.update_progress_bar)
+                self.worker.result_signal.connect(self.store_results)  # Connect result signal
+                self.worker.finished.connect(self.worker_thread.quit)
+                self.worker.finished.connect(self.worker.deleteLater)
+                self.worker_thread.finished.connect(self.worker_thread.deleteLater)
+
+                # Step 4: Start the thread
+                self.worker_thread.start()
+
+                # When the thread finishes, hide the progress bar
+                self.worker_thread.finished.connect(lambda: self.progress_bar.setVisible(False))
+
+            else:
+                self.matching_results = self.job_match_instance.solve(method=method)
+                QMessageBox.information(self, "Matching Results", "Matching completed successfully!")
 
         except Exception as e:
             QMessageBox.critical(self, "Error", f"An error occurred during the matching process: {str(e)}")
@@ -385,13 +468,12 @@ class JobMatchApp(QMainWindow):
 
         self.display_results_popup(result_text)
 
-
-    def get_match_results_text(self, results: List, query: str) -> str:
+    def get_match_results_text(self, results: List[object], query: str) -> str:
         """
         Generate formatted match results text.
 
         Args:
-            results (List): List of results to format.
+            results (List[object]): List of instructor or course match results.
             query (str): The query type, either 'instructor' or 'course'.
 
         Returns:
@@ -437,7 +519,6 @@ class JobMatchApp(QMainWindow):
 
             return f"<table style='width: 100%;'>{''.join(result_lines)}</table>"
 
-
     def display_results_popup(self, text: str) -> None:
         """
         Display the results in a popup.
@@ -460,7 +541,12 @@ class JobMatchApp(QMainWindow):
         result_popup.exec_()
 
     def export_results_to_csv(self) -> None:
-        """Export the matching results to a CSV file."""
+        """
+        Export the matching results to a CSV file.
+
+        Displays an error if there are no results to export or prompts the user to select a location
+        to save the file, then exports the matching results as a CSV.
+        """
         if not self.matching_results:
             QMessageBox.critical(self, "Error", "No matching results to export. Please run the matching algorithm first.")
             return

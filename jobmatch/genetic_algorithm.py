@@ -1,52 +1,64 @@
 import random
-from typing import Dict, List, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 from tqdm import tqdm
 
+from jobmatch.dataclasses import Course, Instructor
 from jobmatch.global_functions import set_all_seeds
 
 # %%
 
 
-def initialize_population(num_individuals: int, instructors: List, courses: List) -> List:
+def initialize_population(num_individuals: int, instructors: List[Instructor], courses: List[Course]) -> List[List[Tuple[str, str]]]:
     """
     Randomly initialize the population for the genetic algorithm.
 
     Args:
         num_individuals (int): Number of individuals in the population.
-        instructors (List): List of Instructor objects.
-        courses (List): List of Course objects.
+        instructors (List[Instructor]): List of Instructor objects.
+        courses (List[Course]): List of Course objects.
 
     Returns:
-        List: A list of chromosomes where each chromosome is a list of (instructor_section, course_section) tuples.
-        The maximum length of the chromosome list is sum(instructor.max_classes) for all instructors
+        List[List[Tuple[str, str]]]: A list of chromosomes where each chromosome is a list of (instructor_section, course_section) tuples.
+        The maximum length of the chromosome list is sum(instructor.max_classes) for all instructors.
     """
     population = []
     instructor_sections = [
         f"{instructor.name}_section_{i+1}" for instructor in instructors for i in range(instructor.max_classes)
     ]
+
     for _ in range(num_individuals):
         chromosome = []
         for course in courses:
-            for section in range(course.sections_available):
+            # If there's a course director, assign them to their sections first
+            if course.course_director:
+                director = next((inst for inst in instructors if inst.name == course.course_director), None)
+                if director:
+                    for section in range(min(course.sections_available, director.max_classes)):
+                        chromosome.append((f"{director.name}_section_{section+1}", f"{course.name}_section_{section+1}"))
+
+            # Randomly assign other instructors to remaining sections
+            for section in range(course.sections_available - len([pair for pair in chromosome if pair[1].startswith(f"{course.name}_section")])):
                 instructor_section = random.choice(instructor_sections)
                 chromosome.append((instructor_section, f"{course.name}_section_{section+1}"))
+
         population.append(chromosome)
+
     return population
 
 
-def fitness_function(chromosome: List[Tuple[str, str]], instructors: List,
-                     courses: List, max_sections: Dict[str, int],
+def fitness_function(chromosome: List[Tuple[str, str]], instructors: List[Instructor],
+                     courses: List[Course], max_sections: Dict[str, int],
                      max_unique_classes: int, non_preferred_penalty: int = 0,
-                     course_director_penalty: int = 50) -> int:
+                     course_director_penalty: int = 30) -> int:
     """
     Calculate the fitness of a chromosome based on the instructor preferences, constraints, and course director roles.
 
     Args:
         chromosome (List[Tuple[str, str]]): The chromosome representing a potential solution.
-        instructors (List): List of Instructor objects.
-        courses (List): List of Course objects.
+        instructors (List[Instructor]): List of Instructor objects.
+        courses (List[Course]): List of Course objects.
         max_sections (Dict[str, int]): Maximum number of sections per instructor.
         max_unique_classes (int): Maximum number of unique classes an instructor can teach.
         non_preferred_penalty (int, optional): Penalty applied for each course assigned to an instructor
@@ -73,9 +85,9 @@ def fitness_function(chromosome: List[Tuple[str, str]], instructors: List,
 
         # Penalty for exceeding max unique courses or max sections
         if len(unique_courses) > max_unique_classes:
-            fitness -= 15 * (len(unique_courses) - max_unique_classes)
+            fitness -= 25 * (len(unique_courses) - max_unique_classes)
         if len(assigned_courses) > max_sections[instructor_name]:
-            fitness -= 15 * (len(assigned_courses) - max_sections[instructor_name])
+            fitness -= 25 * (len(assigned_courses) - max_sections[instructor_name])
 
         # Get the instructor object
         instructor = next(inst for inst in instructors if inst.name == instructor_name)
@@ -101,15 +113,14 @@ def fitness_function(chromosome: List[Tuple[str, str]], instructors: List,
                     fitness -= non_preferred_penalty  # Penalty for non-core courses
 
             # Step 4: Apply course director penalty if the instructor is a course director
-            if course_obj.course_director == instructor.name:
-                course_count = assigned_courses.count(course)
+            for course in assigned_courses:
+                course_obj = next(crs for crs in courses if crs.name == course)
 
-                # If the course director is not assigned the max sections they can teach, apply a penalty
-                if course_count < max_sections[instructor_name] and course_count < course_obj.sections_available:
-                    #print(f"course director penalty for {instructor.name} / {course}")
-                    # Penalize based on how many sections they are missing
-                    fitness -= course_director_penalty * (max_sections[instructor_name] - course_count)
-
+                if course_obj.course_director == instructor.name:
+                    course_count = assigned_courses.count(course_obj.name)
+                    if course_count < min(max_sections[instructor_name], course_obj.sections_available):
+                        missing_sections = max_sections[instructor_name] - course_count
+                        fitness -= course_director_penalty * missing_sections
     return fitness
 
 
@@ -130,13 +141,13 @@ def crossover(parent1: List[Tuple[str, str]], parent2: List[Tuple[str, str]]) ->
     return child1, child2
 
 
-def mutate(chromosome: List[Tuple[str, str]], instructors: List) -> List[Tuple[str, str]]:
+def mutate(chromosome: List[Tuple[str, str]], instructors: List[Instructor]) -> List[Tuple[str, str]]:
     """
     Perform mutation on a chromosome by changing one gene.
 
     Args:
         chromosome (List[Tuple[str, str]]): The chromosome to mutate.
-        instructors (List): List of Instructor objects.
+        instructors (List[Instructor]): List of Instructor objects.
 
     Returns:
         List[Tuple[str, str]]: The mutated chromosome.
@@ -148,23 +159,25 @@ def mutate(chromosome: List[Tuple[str, str]], instructors: List) -> List[Tuple[s
     return chromosome
 
 
-def genetic_algorithm(instructors: List, courses: List, max_sections: Dict[str, int],
-                      max_unique_classes: int, num_generations: int = 100, population_size: int = 100,
-                      non_preferred_penalty: int = 0, seed: int = 42) -> Tuple[List, List, List[int]]:
+def genetic_algorithm(instructors: List[Instructor], courses: List[Course], max_sections: Dict[str, int],
+                      max_unique_classes: int, num_generations: int = 500, population_size: int = 500,
+                      non_preferred_penalty: int = 3, seed: int = 42, progress_callback: Optional[Callable[[int], None]] = None) -> Tuple[List['Instructor'], List['Course'], List[int]]:
     """
     Run the genetic algorithm to optimize the assignment of instructors to courses.
 
     Args:
-        instructors (List): List of Instructor objects.
-        courses (List): List of Course objects.
+        instructors (List[Instructor]): List of Instructor objects.
+        courses (List[Course]): List of Course objects.
         max_sections (Dict[str, int]): Maximum number of sections per instructor.
         max_unique_classes (int): Maximum number of unique classes an instructor can teach.
-        num_generations (int, optional): Number of generations for the algorithm. Defaults to 100.
-        population_size (int, optional): Size of the population. Defaults to 100.
+        num_generations (int, optional): Number of generations for the algorithm. Defaults to 500.
+        population_size (int, optional): Size of the population. Defaults to 500.
+        non_preferred_penalty (int, optional): Penalty for non-preferred courses. Defaults to 3.
         seed (int, optional): Seed for reproducibility. Defaults to 42.
+        progress_callback (Optional[Callable[[int], None]], optional): Callback for progress updates.
 
     Returns:
-        Tuple[List, List, List[int]]: The best instructors, courses, and fitness scores over time.
+        Tuple[List[Instructor], List[Course], List[int]]: The best instructors, courses, and fitness scores over time.
     """
     # Set all seeds for reproducibility
     set_all_seeds(seed)
@@ -178,6 +191,10 @@ def genetic_algorithm(instructors: List, courses: List, max_sections: Dict[str, 
                                            non_preferred_penalty) for chromosome in population]
         max_fitness = max(fitness_scores)
         fitness_over_time.append(max_fitness)
+
+        # Emit progress update
+        if progress_callback:
+            progress_callback(int((generation / num_generations) * 100))
 
         sorted_population = [chromosome for _, chromosome in sorted(zip(fitness_scores, population), reverse=True)]
         top_individuals = sorted_population[:population_size // 2]
@@ -202,33 +219,24 @@ def genetic_algorithm(instructors: List, courses: List, max_sections: Dict[str, 
         instructor.unique_courses = set()
 
     for instructor_section, course_section in best_solution:
+        # split sections and instructors to append to each's assignment
         instructor_name = instructor_section.split('_section_')[0]
         course_name = course_section.split('_section_')[0]
+
+        # find course and instructor
+        course = next(crs for crs in courses if crs.name == course_name)
         instructor = next(inst for inst in instructors if inst.name == instructor_name)
-        instructor.assign_course(course_name, 1)
+
+        # assign course to instructor and vice versa
+        if len(instructor.assigned_courses) < instructor.max_classes:
+            instructor.assign_course(course_name, 1)
+            course.assigned_instructors.append(instructor.name)
 
     return instructors, courses, fitness_over_time
 
 
-# Plotting function
-def plot_fitness_over_time(fitness_over_time: List[int]) -> None:
-    """
-    Plot the max fitness score over generations.
-
-    Args:
-        fitness_over_time (List[int]): List of fitness scores over generations.
-    """
-    plt.figure(figsize=(10, 6))
-    plt.plot(range(len(fitness_over_time)), fitness_over_time, marker='o')
-    plt.title('Max Fitness Score Over Generations')
-    plt.xlabel('Generation')
-    plt.ylabel('Max Fitness Score')
-    plt.grid(True)
-    plt.show()
-
-
 # Example usage:
-def print_ga_assignments(instructors: List) -> None:
+def print_ga_assignments(instructors: List, courses: List) -> None:
     """
     Print the assignments of instructors to courses.
 
@@ -238,6 +246,10 @@ def print_ga_assignments(instructors: List) -> None:
     print("\nInstructor assignments")
     for instructor in instructors:
         instructor.print_assignments()
+
+    print("\nCourse assignments")
+    for course in courses:
+        course.print_assignments()
 
 # %%
 
@@ -256,8 +268,11 @@ if __name__ == "__main__":
 
     wd = here()
 
-    instructor_list_raw = load_instructors(str(wd / "data/validate/instructors_with_preferences.csv"))
-    course_list = load_courses(str(wd / "data/validate/course_data_with_course_directors.csv"))
+#    instructor_list_raw = load_instructors(str(wd / "data/validate/instructors_with_preferences.csv"))
+#    course_list = load_courses(str(wd / "data/validate/course_data_with_course_directors.csv"))
+
+    instructor_list_raw = load_instructors(str(wd / "releases/v1.1/example_instructors.xlsx"))
+    course_list = load_courses(str(wd / "releases/v1.1/example_courses.xlsx"))
 
     instructor_list = [inst for inst in instructor_list_raw if inst.max_classes > 0]
 
@@ -268,12 +283,28 @@ if __name__ == "__main__":
         max_unique_classes=2,
         num_generations=500,
         population_size=500,
-        non_preferred_penalty = 3,
-        seed = 80920
+        non_preferred_penalty=5,
+        seed=8675309
     )
 
     # Inspect the best solution
-    print_ga_assignments(best_instructors)
+    print_ga_assignments(best_instructors, best_courses)
+
+    # Plotting function
+    def plot_fitness_over_time(fitness_over_time: List[int]) -> None:
+        """
+        Plot the max fitness score over generations.
+
+        Args:
+            fitness_over_time (List[int]): List of fitness scores over generations.
+        """
+        plt.figure(figsize=(10, 6))
+        plt.plot(range(len(fitness_over_time)), fitness_over_time, marker='o')
+        plt.title('Max Fitness Score Over Generations')
+        plt.xlabel('Generation')
+        plt.ylabel('Max Fitness Score')
+        plt.grid(True)
+        plt.show()
 
     # Plot the fitness over time
     plot_fitness_over_time(fitness_over_time)

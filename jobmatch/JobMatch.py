@@ -7,6 +7,7 @@ import networkx as nx
 from gui.load_data import load_courses, load_instructors
 from jobmatch.bipartite_graph_match import bipartite_matching_solver
 from jobmatch.dataclasses import Course, Instructor
+from jobmatch.genetic_algorithm import genetic_algorithm
 from jobmatch.linear_program_optimization import \
     iterative_linear_programming_solver
 from jobmatch.preprocessing import create_preference_tuples, parse_preferences
@@ -70,7 +71,9 @@ class JobMatch:
         self.raw_courses = courses
         self.instructors, self.courses = self.match_course_directors(self.raw_instructors, self.raw_courses)
 
-    def match_course_directors(self, instructors,courses):
+    def match_course_directors(self, instructor_list, course_list):
+        instructors = copy.deepcopy(instructor_list)
+        courses = copy.deepcopy(course_list)
         updated_courses = []
         updated_instructors = [inst for inst in instructors]  # Shallow copy of instructors
 
@@ -114,6 +117,8 @@ class JobMatch:
             return self.bipartite_matching_solver
         elif method == 'linear_programming':
             return self.iterative_linear_programming_solver
+        elif method == 'genetic_algorithm':
+            return self.genetic_algorithm_solver
         else:
             raise ValueError(f"Unknown method: {method}")
 
@@ -173,6 +178,34 @@ class JobMatch:
         # Call the linear programming solution logic
         return iterative_linear_programming_solver(instructors, courses)
 
+    def genetic_algorithm_solver(self, **kwargs) -> Tuple[Dict[str, Optional[str]], Dict[str, int]]:
+        """Solve the matching problem using an evolutionary genetic algorithm.
+
+        Returns:
+            Tuple[Dict[str, Optional[str]], Dict[str, List[str]]]:
+                A tuple containing two dictionaries:
+                - The first dictionary maps each instructor to their assigned course (or None if not assigned).
+                - The second dictionary maps each course to a list of assigned instructors.
+        """
+        # copy class attributes to avoid leakage if values are modified
+        # use raw instructor lists (ie without course director added) because algorithm accounts for that internally
+        instructor_list = copy.deepcopy(self.raw_instructors)
+        instructors = [inst for inst in instructor_list if inst.max_classes > 0]
+
+        courses = copy.deepcopy(self.raw_courses)
+        # Call the stable marriage solution logic
+        genetic_kwargs = {
+            'instructors': instructors,
+            'courses': courses,
+            'max_sections': {inst.name: inst.max_classes for inst in instructors},
+            'max_unique_classes': 2,
+            'num_generations': 500,
+            'population_size': 500,
+            'non_preferred_penalty': 5,
+            'seed': 8675309
+        }
+        return genetic_algorithm(**genetic_kwargs, **kwargs)
+
     def solve(self, method: str, **kwargs) -> Tuple:
         """Main entry point for solving the matching problem with the selected method.
 
@@ -192,9 +225,6 @@ class JobMatch:
 
         # Step 3: Solve the problem using the selected solver
         result = solver(**kwargs)
-
-        # Calculate and store match ranks
-        # self.match_ranks = self.print_match_results(result[0])
 
         return result
 
@@ -219,7 +249,6 @@ if __name__ == "__main__":
                                         parse_preferences,
                                         print_matching_results)
     wd = here()
-
 
     instructor_list = load_instructors(str(wd / "data/validate/instructors_with_preferences.csv"))
     course_list = load_courses(str(wd / "data/validate/course_data_with_course_directors.csv"))
@@ -248,4 +277,13 @@ if __name__ == "__main__":
     matches_lp = factory.solve(method='linear_programming')
     factory.print_match_results(matches_lp[0])
     factory.print_match_results(matches_lp[1])
+    print("")
+
+    # Solve using linear programming
+    print("Test on real preferences: genetic algorithm\n")
+    matches_gen = factory.solve(method='genetic_algorithm')
+    print("")
+    factory.print_match_results(matches_gen[0])
+    print("")
+    factory.print_match_results(matches_gen[1])
     print("")

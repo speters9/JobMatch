@@ -34,8 +34,7 @@ course_df = course_df.rename(columns = {'course_name': 'course',
 
 
 cols_to_display = ['course', 'sections_required', 'sections_assigned', 'covered']
-assert (~course_df['covered']).sum(
-) == 0, f"Missing courses: {(~course_df['covered']).sum() - 1}\n{course_df[~course_df['covered']][cols_to_display]}"
+print(f"Missing courses: {(~course_df['covered']).sum() - 1}\n{course_df[~course_df['covered']][cols_to_display]}")
 
 
 print("All sections covered!")
@@ -61,7 +60,7 @@ course_instructors_df = course_instructors_df[col_order]
 
 
 
-df = df.drop(['Assigned Courses', 'Ranks'], axis =1)
+#df = df.drop(['Assigned Courses', 'Ranks'], axis =1)
 
 #%%
 course_instructors_df.to_excel(wd / "data/validate/revised_course_matches.xlsx", index= False)

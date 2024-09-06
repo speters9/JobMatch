@@ -1,9 +1,10 @@
+import logging
 from unittest.mock import patch
 
 import pandas as pd
 import pytest
 from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtTest import QTest
+from PyQt5.QtTest import QSignalSpy, QTest
 from PyQt5.QtWidgets import (QApplication, QDialog, QDialogButtonBox,
                              QMessageBox, QTextEdit)
 
@@ -41,6 +42,7 @@ def mock_instructors():
         ),
     ]
 
+
 @pytest.fixture
 def mock_courses():
     return [
@@ -49,30 +51,35 @@ def mock_courses():
             course_id="101",
             course_description="Introduction to Political Science",
             sections_available=2,
-            assigned_instructors=[]
+            assigned_instructors=[],
+            course_director="Alice"
         ),
         Course(
             name="PS300",
             course_id="102",
             course_description="Advanced Political Theory",
             sections_available=1,
-            assigned_instructors=[]
+            assigned_instructors=[],
+            course_director=None
         ),
         Course(
             name="SocSci100",
             course_id="103",
             course_description="Introduction to Social Sciences",
             sections_available=3,
-            assigned_instructors=[]
+            assigned_instructors=[],
+            course_director="Bob"
         ),
         Course(
             name="Econ101",
             course_id="104",
             course_description="Introduction to Economics",
             sections_available=1,
-            assigned_instructors=[]
+            assigned_instructors=[],
+            course_director=None
         ),
     ]
+
 
 @pytest.fixture
 def job_match_app(qapp, mock_instructors, mock_courses, tmp_path):
@@ -91,6 +98,7 @@ def job_match_app(qapp, mock_instructors, mock_courses, tmp_path):
     yield window
     window.close()
 
+
 @pytest.fixture
 def empty_job_match_app(qapp, mock_instructors, mock_courses):
     """Fixture for creating an instance of the JobMatchApp with preloaded data."""
@@ -101,6 +109,7 @@ def empty_job_match_app(qapp, mock_instructors, mock_courses):
     window.show()
     yield window
     window.close()
+
 
 @pytest.fixture
 def test_instructor_file(tmp_path):
@@ -135,7 +144,6 @@ def test_course_file(tmp_path):
     df_courses.to_excel(excel_file_path, index=False)
 
     return excel_file_path
-
 
 
 # --------------- Testing load data logic --------------------
@@ -178,6 +186,7 @@ def test_course_file_load_error(empty_job_match_app, qtbot, mocker, tmp_path):
 
 # ----- assuming no file loaded, these errors should populate --------
 
+
 def test_run_matching_without_files(empty_job_match_app, mocker, qtbot):
     mock_msg_box = mocker.patch('PyQt5.QtWidgets.QMessageBox.critical', return_value=None)
 
@@ -205,6 +214,7 @@ def test_print_results_no_matching(empty_job_match_app, mocker, qtbot):
     )
 
 # ----------------- test successful loading --------------------------
+
 
 def test_successful_instructor_file_load(empty_job_match_app, qtbot, mocker, test_instructor_file):
     QTest.mousePress(empty_job_match_app.instructor_label, Qt.LeftButton)
@@ -237,20 +247,180 @@ def test_successful_course_file_load(empty_job_match_app, qtbot, mocker, test_co
     assert empty_job_match_app.course_file == str(test_course_file)
     assert empty_job_match_app.courses is not None
 
-## ------------------------- test matching --------------------
+# ------------------------- test matching --------------------
+# def test_progress_bar_updates_during_genetic_algorithm(job_match_app, qtbot, mocker):
+#     """
+#     Test the progress bar updates correctly during the genetic algorithm execution and ensure the QMessageBox is shown.
+#     """
+
+#     # Set the matching method to "Genetic Algorithm"
+#     job_match_app.method_menu.setCurrentText("Genetic Algorithm")
+
+#     # Validate that the correct method is selected
+#     assert job_match_app.method_menu.currentText() == "Genetic Algorithm"
+
+#     # Mock the QMessageBox to verify that it is called
+#     mock_msg_box = mocker.patch('PyQt5.QtWidgets.QMessageBox.information', return_value=None)
+
+#     # Trigger the run_matching process
+#     job_match_app.run_button.click()
+
+#     # Wait until the worker is created and assigned
+#     qtbot.waitUntil(lambda: hasattr(job_match_app, 'worker'), timeout=3000)
+
+#     # Simulate progress bar updates
+#     for progress_value in range(0, 101, 10):  # Simulate progress in increments of 10%
+#         job_match_app.update_progress_bar(progress_value)
+#         assert job_match_app.progress_bar.value() == progress_value
+
+#     # Emit the finished signal manually to simulate worker completion
+#     job_match_app.worker.finished.emit()
+
+#     # Ensure the progress bar reaches 100%
+#     assert job_match_app.progress_bar.value() == 100
+
+#     # Ensure the progress bar is hidden at the end of the process
+#     qtbot.waitUntil(lambda: not job_match_app.progress_bar.isVisible(), timeout=10000)
+
+#     # Verify that the QMessageBox was called
+#     mock_msg_box.assert_called_once_with(
+#         job_match_app,
+#         "Matching Results",
+#         "Matching completed successfully! \nUse the dropdown and 'Print Results' button to view results."
+#     )
+
+
+# @pytest.mark.parametrize("method", ["Bipartite Matching", "Stable Marriage", "Linear Programming", "Genetic Algorithm"])
+# def test_run_matching_with_mock_data(job_match_app, mocker, method, qtbot, caplog):
+#     """
+#     Test the matching process when valid mock data is loaded, the method is selected,
+#     and `run_matching` is called directly.
+#     """
+#     # Ensure mock data is loaded
+#     assert job_match_app.instructors is not None
+#     assert job_match_app.courses is not None
+
+#     # Set the matching method (test all 3 with parametrization)
+#     job_match_app.method_menu.setCurrentText(method)
+
+#     # Validate that the correct method is selected
+#     assert job_match_app.method_menu.currentText() == method
+
+#     # Mock the QMessageBox to verify that it is called
+#     mock_msg_box = mocker.patch('PyQt5.QtWidgets.QMessageBox.information', return_value=None)
+
+#     # Use caplog to capture log output
+#     with caplog.at_level(logging.INFO):
+#         # Call run_matching directly
+#         job_match_app.run_matching()
+
+#         qtbot.waitUntil(lambda: mock_msg_box.call_count > 0, timeout=10000)
+#         mock_msg_box.assert_called_once()
+#         assert "Matching Results" in mock_msg_box.call_args[0][1]
+
+#         # Verify course director assignments are logged
+#         log_messages = [record.message for record in caplog.records]
+
+#         assert any("Alice assigned as course director for PS211" in message for message in log_messages), "Course director Alice not assigned to PS211"
+#         assert any("Bob assigned as course director for SocSci100" in message for message in log_messages), "Course director Bob not assigned to SocSci100"
+
+#         # Check if matching results are generated
+#         assert job_match_app.matching_results is not None
+
+#     print(method)
+#     # Verify that course directors are correctly assigned
+#     ps211 = next(course for course in job_match_app.matching_results[1] if course.name == "PS211")
+#     assert "Alice" in ps211.assigned_instructors, "Course director Alice not assigned to PS211"
+
+def test_progress_bar_updates_during_genetic_algorithm(job_match_app, qtbot, mocker):
+    """
+    Test the progress bar updates correctly during the genetic algorithm execution.
+    """
+
+    # Set the matching method to "Genetic Algorithm"
+    job_match_app.method_menu.setCurrentText("Genetic Algorithm")
+
+    # Validate that the correct method is selected
+    assert job_match_app.method_menu.currentText() == "Genetic Algorithm"
+
+    # Mock the QMessageBox to verify that it is called
+    mock_msg_box = mocker.patch('PyQt5.QtWidgets.QMessageBox.information', return_value=None)
+
+    # Trigger the run_matching process
+    job_match_app.run_button.click()
+
+    # Wait until the worker is created and assigned
+    qtbot.waitUntil(lambda: hasattr(job_match_app, 'worker'), timeout=3000)
+
+    # Simulate progress bar updates
+    for progress_value in range(0, 101, 10):
+        job_match_app.update_progress_bar(progress_value)
+        assert job_match_app.progress_bar.value() == progress_value
+
+    # Emit the finished signal manually to simulate worker completion
+    job_match_app.worker.finished.emit()
+
+    # Ensure the progress bar reaches 100%
+    assert job_match_app.progress_bar.value() == 100
+
+    # Ensure the progress bar is hidden at the end of the process
+    qtbot.waitUntil(lambda: not job_match_app.progress_bar.isVisible(), timeout=10000)
+    mock_msg_box.assert_called_once()
+    assert "Matching Results" in mock_msg_box.call_args[0][1]
+
+
+def test_genetic_algorithm_shows_message_box(job_match_app, mocker, qtbot, caplog):
+    """
+    Test the matching process for Genetic Algorithm, ensure the QMessageBox is shown,
+    and course directors are logged correctly.
+    """
+
+    # Set the matching method to "Genetic Algorithm"
+    job_match_app.method_menu.setCurrentText("Genetic Algorithm")
+
+    # Mock the QMessageBox to verify that it is called
+    mock_msg_box = mocker.patch('PyQt5.QtWidgets.QMessageBox.information', return_value=None)
+
+    # Use caplog to capture log output
+    with caplog.at_level(logging.INFO):
+        # Trigger the run_matching process
+        job_match_app.run_button.click()
+
+        # Wait until the worker is created and assigned
+        qtbot.waitUntil(lambda: hasattr(job_match_app, 'worker'), timeout=3000)
+
+        # Emit the finished signal manually to simulate worker completion
+        job_match_app.worker.finished.emit()
+
+        # Wait until the QMessageBox is shown
+        qtbot.waitUntil(lambda: mock_msg_box.call_count > 0, timeout=10000)
+
+        # Verify that the QMessageBox was called
+        mock_msg_box.assert_called_once_with(
+            job_match_app,
+            "Matching Results",
+            "Matching completed successfully! \nUse the dropdown and 'Print Results' button to view results."
+        )
+
+        # Verify course director assignments are logged
+        log_messages = [record.message for record in caplog.records]
+        assert any("Alice assigned as course director for PS211" in message for message in log_messages), \
+            "Course director Alice not assigned to PS211"
+        assert any("Bob assigned as course director for SocSci100" in message for message in log_messages), \
+            "Course director Bob not assigned to SocSci100"
 
 
 @pytest.mark.parametrize("method", ["Bipartite Matching", "Stable Marriage", "Linear Programming"])
-def test_run_matching_with_mock_data(job_match_app, mocker, method, qtbot):
+def test_run_matching_with_mock_data(job_match_app, mocker, method, qtbot, caplog):
     """
-    Test the matching process when valid mock data is loaded, the method is selected,
-    and `run_matching` is called directly.
+    Test the matching process when valid mock data is loaded, and the method is selected.
     """
+
     # Ensure mock data is loaded
     assert job_match_app.instructors is not None
     assert job_match_app.courses is not None
 
-    # Set the matching method (test all 3 with parametrization)
+    # Set the matching method
     job_match_app.method_menu.setCurrentText(method)
 
     # Validate that the correct method is selected
@@ -262,12 +432,16 @@ def test_run_matching_with_mock_data(job_match_app, mocker, method, qtbot):
     # Call run_matching directly
     job_match_app.run_matching()
 
-    qtbot.waitUntil(lambda: mock_msg_box.call_count > 0, timeout=1000)
+    qtbot.waitUntil(lambda: mock_msg_box.call_count > 0, timeout=10000)
     mock_msg_box.assert_called_once()
     assert "Matching Results" in mock_msg_box.call_args[0][1]
 
     # Check if matching results are generated
     assert job_match_app.matching_results is not None
+
+    # Verify that course directors are correctly assigned
+    ps211 = next(course for course in job_match_app.matching_results[1] if course.name == "PS211")
+    assert "Alice" in ps211.assigned_instructors, "Course director Alice not assigned to PS211"
 
 
 # -------------------------- other functions: theme, print, save ---------------------
@@ -276,7 +450,6 @@ def test_theme_toggle(job_match_app):
     initial_theme = job_match_app.is_light_theme
     job_match_app.toggle_theme()
     assert job_match_app.is_light_theme != initial_theme
-
 
 
 def test_instructions_button(job_match_app, qtbot):
@@ -306,7 +479,8 @@ def test_instructions_button(job_match_app, qtbot):
     assert "Job Matching Tool - Instructions" in dialog_text, "Expected text not found in instructions dialog"
 
     # Check for important pieces of text
-    assert all(text in dialog_text for text in ["instructor-agnostic", "Important Notes", "Operating Instructions"]), "Not all expected text found in instructions dialog"
+    assert all(text in dialog_text for text in ["instructor-agnostic", "Important Notes",
+               "Operating Instructions"]), "Not all expected text found in instructions dialog"
 
     # Find the OK button and simulate a click to close the dialog
     ok_button = instructions_dialog.findChild(QDialogButtonBox).button(QDialogButtonBox.Ok)

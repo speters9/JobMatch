@@ -51,6 +51,7 @@ def sample_instructors():
         ),
     ]
 
+
 @pytest.fixture
 def sample_courses():
     return [
@@ -87,6 +88,7 @@ def sample_courses():
             course_director="David"
         ),
     ]
+
 
 def test_jobmatch_solve_bipartite_matching(sample_instructors, sample_courses):
     original_sections_available = {course.name: course.sections_available for course in sample_courses}
@@ -151,8 +153,8 @@ def test_match_course_directors(sample_instructors, sample_courses):
 
     assert "Alice" in ps211.assigned_instructors
     assert "David" in econ101.assigned_instructors
-    assert alice.assigned_courses == ["PS211"]*min(alice.max_classes,original_sections_available.get("PS211"))
-    assert david.assigned_courses == ["Econ101"]*min(david.max_classes,original_sections_available.get("Econ101"))
+    assert alice.assigned_courses == ["PS211"]*min(alice.max_classes, original_sections_available.get("PS211"))
+    assert david.assigned_courses == ["Econ101"]*min(david.max_classes, original_sections_available.get("Econ101"))
 
 
 def test_linear_programming_solver(sample_instructors, sample_courses):
@@ -190,6 +192,7 @@ def test_stable_marriage_solver(sample_instructors, sample_courses):
     # Check that instructors are not assigned to more than two unique courses
     for instructor in instructor_matches:
         assert len(set(instructor.assigned_courses)) <= 2
+
 
 if __name__ == "__main__":
     pytest.main([__file__])

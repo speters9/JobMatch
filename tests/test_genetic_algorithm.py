@@ -28,8 +28,10 @@ class MockCourse:
         self.name = name
         self.sections_available = sections_available
         self.course_director = course_director  # Course director is optional
+        self.assigned_instructors = []
 
 # Test cases
+
 
 def test_initialize_population():
     instructors = [MockInstructor('Alice', 3, 'phd'), MockInstructor('Bob', 2, 'mas')]
@@ -39,6 +41,26 @@ def test_initialize_population():
     assert len(population) == 10  # Population size
     for chromosome in population:
         assert len(chromosome) == 3  # 2 sections of PS101 + 1 section of PS102
+
+
+def test_initialize_population_with_course_directors():
+    instructors = [
+        MockInstructor('Alice', 3, 'phd'),
+        MockInstructor('Bob', 2, 'mas'),
+    ]
+    courses = [
+        MockCourse('PS101', 2, course_director='Alice'),  # Alice is the course director
+        MockCourse('PS102', 1)
+    ]
+
+    population = initialize_population(10, instructors, courses)
+
+    assert len(population) == 10  # Population size
+    for chromosome in population:
+        # Check that Alice is assigned as course director to PS101
+        course_director_assignment = [(instructor, course)
+                                      for instructor, course in chromosome if course.startswith('PS101_section') and instructor.startswith('Alice')]
+        assert len(course_director_assignment) > 0, "Course director not assigned to their course"
 
 
 def test_fitness_function_with_non_preferred_penalty():
@@ -81,6 +103,7 @@ def test_fitness_function_with_non_preferred_penalty():
     # Bob: - non_preferred_penalty [PS102]
     # Fitness = (10 - 5 - 5) = 0
     assert fitness == 0
+
 
 def test_fitness_function_with_core_course_penalty():
     """Test punishment for core violations."""
