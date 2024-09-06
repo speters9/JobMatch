@@ -86,25 +86,25 @@ All the matching algorithms ensure that:
       - The algorithm evolves through crossover and mutation across multiple generations to find the optimal assignments.
       - Course directors are automatically assigned to their designated courses upon initialization, ensuring that their assignments are prioritized from the start.
 
-
 --------
 ## Usage
-     - To use the JobMatch class, initialize it with:
-          - A list of `Instructor` objects, each containing a list of preferences, maximum section load, and other relevant information.
-          - A list of `Course` objects, each containing the course name, ID, description, and the number of sections available.
-          - You can manually input these data structures or import them via a CSV using the drag-and-drop feature in the GUI.
-     - You can then choose from one of the supported methods (`stable_marriage`, `bipartite_matching`, `linear_programming`, `genetic_algorithm`) to solve the assignment problem.
-
-     - **Note**: The genetic algorithm is more computationally intensive and takes approximately 30 seconds to run due to its iterative nature.
-
-     - Dependencies are managed by Poetry, so running `poetry install` with the pyproject.toml file should get you started.
-
-     - See notebooks for example implementations.
+- **Install**:
+  - Running `poetry install` or `pip install -e` with the pyproject.toml file should get you started.
+- **Initialize**:
+  - To use the JobMatch class, initialize it with:
+    - A list of `Instructor` objects, each containing a list of preferences, maximum section load, and other relevant information.
+    - A list of `Course` objects, each containing the course name, ID, description, and the number of sections available.
+    - You can manually input these data structures or import them via a CSV using the drag-and-drop feature in the GUI.
+    - You can then choose from one of the supported methods (`stable_marriage`, `bipartite_matching`, `linear_programming`, `genetic_algorithm`) to solve the assignment problem.
+    - **Note**: The genetic algorithm is more computationally intensive and takes approximately 30 seconds to run due to its iterative nature.
+  
 --------
 ## New in v1.1:
-
-	- The application now supports course director assignments.
-	- When a course director is designated, each algorithm ensures that they are prioritized in the matching process for their respective courses.
+- **Adds**:
+    - The application now supports course director assignments.
+      - When a course director is designated, each algorithm ensures that they are prioritized in the matching process for their respective courses.
+    - Genetic algorithm matching has been added.
+    - Rearranged user interface for more intuitive interactions.
 
 --------
 ## Running the Application
