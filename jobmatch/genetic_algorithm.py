@@ -1,6 +1,4 @@
 import random
-import time
-from multiprocessing import Pool
 from typing import Callable, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -29,13 +27,14 @@ def initialize_population(num_individuals: int, instructors: List[Instructor], c
     instructor_sections = [
         f"{instructor.name}_section_{i+1}" for instructor in instructors for i in range(instructor.max_classes)
     ]
+    instructor_lookup = {inst.name: inst for inst in instructors}
 
     for _ in range(num_individuals):
         chromosome = []
         for course in courses:
             # If there's a course director, assign them to their sections first
             if course.course_director:
-                director = next((inst for inst in instructors if inst.name == course.course_director), None)
+                director = instructor_lookup.get(course.course_director, None)
                 if director:
                     for section in range(min(course.sections_available, director.max_classes)):
                         chromosome.append((f"{director.name}_section_{section+1}", f"{course.name}_section_{section+1}"))
@@ -124,28 +123,7 @@ def initialize_population(num_individuals: int, instructors: List[Instructor], c
 #                         missing_sections = max_sections[instructor_name] - course_count
 #                         fitness -= course_director_penalty * missing_sections
 #     return fitness
-def evaluate_population(pool, population, instructors, courses, max_sections, max_unique_classes, non_preferred_penalty):
-    """
-    Evaluate the fitness of the population using a persistent multiprocessing pool.
 
-    Args:
-        pool (Pool): A pre-initialized multiprocessing Pool to avoid re-creating it every time.
-        population (List[List[Tuple[str, str]]]): Population of chromosomes.
-        instructors (List[Instructor]): List of Instructor objects.
-        courses (List[Course]): List of Course objects.
-        max_sections (Dict[str, int]): Maximum number of sections per instructor.
-        max_unique_classes (int): Maximum number of unique classes an instructor can teach.
-        non_preferred_penalty (int): Penalty for non-preferred courses.
-
-    Returns:
-        List[int]: Fitness scores for each chromosome.
-    """
-    fitness_scores = pool.starmap(
-        fitness_function,
-        [(chromosome, instructors, courses, max_sections, max_unique_classes, non_preferred_penalty)
-         for chromosome in population]
-    )
-    return fitness_scores
 
 def fitness_function(chromosome: List[Tuple[str, str]], instructors: List[Instructor],
                      courses: List[Course], max_sections: Dict[str, int],
@@ -262,9 +240,10 @@ def mutate(chromosome: List[Tuple[str, str]], instructors: List[Instructor]) -> 
 
 def genetic_algorithm(instructors: List[Instructor], courses: List[Course], max_sections: Dict[str, int],
                       max_unique_classes: int, num_generations: int = 500, population_size: int = 500,
-                      non_preferred_penalty: int = 3, seed: int = 42, progress_callback: Optional[Callable[[int], None]] = None) -> Tuple[List['Instructor'], List['Course'], List[int]]:
+                      non_preferred_penalty: int = 3, seed: int = 42, progress_callback: Optional[Callable[[int], None]] = None,
+                      early_stopping_window: int = 200, min_fitness_change: float = 0.005) -> Tuple[List['Instructor'], List['Course'], List[int]]:
     """
-    Run the genetic algorithm to optimize the assignment of instructors to courses.
+    Run the genetic algorithm to optimize the assignment of instructors to courses with early stopping.
 
     Args:
         instructors (List[Instructor]): List of Instructor objects.
@@ -276,6 +255,8 @@ def genetic_algorithm(instructors: List[Instructor], courses: List[Course], max_
         non_preferred_penalty (int, optional): Penalty for non-preferred courses. Defaults to 3.
         seed (int, optional): Seed for reproducibility. Defaults to 42.
         progress_callback (Optional[Callable[[int], None]], optional): Callback for progress updates.
+        early_stopping_window (int, optional): Number of generations to consider for early stopping.
+        min_fitness_change (float, optional): Minimum fitness change between generations to continue running.
 
     Returns:
         Tuple[List[Instructor], List[Course], List[int]]: The best instructors, courses, and fitness scores over time.
@@ -286,38 +267,42 @@ def genetic_algorithm(instructors: List[Instructor], courses: List[Course], max_
     population = initialize_population(population_size, instructors, courses)
     fitness_over_time = []
 
-    # for generation in tqdm(range(num_generations)):
-    #     # fitness_scores = [fitness_function(chromosome, instructors, courses,
-    #     #                                    max_sections, max_unique_classes,
-    #     #                                    non_preferred_penalty) for chromosome in population]
+    for generation in tqdm(range(num_generations)):
+        fitness_scores = [fitness_function(chromosome, instructors, courses,
+                                            max_sections, max_unique_classes,
+                                            non_preferred_penalty) for chromosome in population]
 
-    with Pool() as pool:  # Initialize the pool once
-        for generation in tqdm(range(num_generations)):
-            # Use the pre-initialized pool for evaluating fitness
-            fitness_scores = evaluate_population(pool, population, instructors, courses, max_sections,
-                                                 max_unique_classes, non_preferred_penalty)
+        fitness_scores = np.array(fitness_scores)
+        max_fitness = np.max(fitness_scores)
+        fitness_over_time.append(max_fitness)
 
-            fitness_scores = np.array(fitness_scores)
-            max_fitness = np.max(fitness_scores)
-            fitness_over_time.append(max_fitness)
+        # Emit progress update
+        if progress_callback:
+            progress_callback(int((generation / num_generations) * 100))
 
-            # Emit progress update
-            if progress_callback:
-                progress_callback(int((generation / num_generations) * 100))
+        # Early Stopping based on mean change in fitness
+        if generation >= early_stopping_window:
+            # Get the last `early_stopping_window` fitness scores
+            recent_fitness = fitness_over_time[-early_stopping_window:]
+            mean_fitness_change = np.mean(np.diff(recent_fitness))
 
-            sorted_population = [chromosome for _, chromosome in sorted(zip(fitness_scores, population), reverse=True)]
-            top_individuals = sorted_population[:population_size // 2]
+            if abs(mean_fitness_change) < min_fitness_change:
+                print(f"Early stopping at generation {generation}: Mean fitness change < {min_fitness_change}")
+                break
 
-            new_population = []
-            while len(new_population) < population_size:
-                parent1 = random.choice(top_individuals)
-                parent2 = random.choice(top_individuals)
-                child1, child2 = crossover(parent1, parent2)
-                child1 = mutate(child1, instructors)
-                child2 = mutate(child2, instructors)
-                new_population.extend([child1, child2])
+        sorted_population = [chromosome for _, chromosome in sorted(zip(fitness_scores, population), reverse=True)]
+        top_individuals = sorted_population[:population_size // 2]
 
-            population = new_population
+        new_population = []
+        while len(new_population) < population_size:
+            parent1 = random.choice(top_individuals)
+            parent2 = random.choice(top_individuals)
+            child1, child2 = crossover(parent1, parent2)
+            child1 = mutate(child1, instructors)
+            child2 = mutate(child2, instructors)
+            new_population.extend([child1, child2])
+
+        population = new_population
 
     final_fitness_scores = [fitness_function(chromosome, instructors, courses,
                                              max_sections, max_unique_classes) for chromosome in population]
