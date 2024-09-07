@@ -241,7 +241,7 @@ def mutate(chromosome: List[Tuple[str, str]], instructors: List[Instructor]) -> 
 def genetic_algorithm(instructors: List[Instructor], courses: List[Course], max_sections: Dict[str, int],
                       max_unique_classes: int, num_generations: int = 500, population_size: int = 500,
                       non_preferred_penalty: int = 3, seed: int = 42, progress_callback: Optional[Callable[[int], None]] = None,
-                      early_stopping_window: int = 200, min_fitness_change: float = 0.005) -> Tuple[List['Instructor'], List['Course'], List[int]]:
+                      early_stopping_window: int = 250, min_fitness_change: float = 0.001) -> Tuple[List['Instructor'], List['Course'], List[int]]:
     """
     Run the genetic algorithm to optimize the assignment of instructors to courses with early stopping.
 
