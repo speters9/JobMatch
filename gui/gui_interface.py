@@ -3,7 +3,7 @@ import os
 from typing import List, Optional, Tuple, Union
 
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtCore import QObject, QThread, pyqtSignal
+from PyQt5.QtCore import QObject, QThread, QTimer, pyqtSignal
 from PyQt5.QtWidgets import (QApplication, QComboBox, QDialog,
                              QDialogButtonBox, QFileDialog, QHBoxLayout,
                              QLabel, QMainWindow, QMessageBox, QPushButton,
@@ -276,6 +276,11 @@ class JobMatchApp(QMainWindow):
         self.progress_bar.setVisible(False)
         layout.addWidget(self.progress_bar)
 
+        # Add a timer to periodically process events and keep the UI responsive
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(lambda: None)  # Dummy function to keep the event loop running
+        self.timer.start(100)  # 100 ms interval
+
         # Set the default light theme
         self.apply_theme(light=True)
 
@@ -438,6 +443,9 @@ class JobMatchApp(QMainWindow):
                 self.worker.finished.connect(self.worker_thread.quit)
                 self.worker.finished.connect(self.worker.deleteLater)
                 self.worker_thread.finished.connect(self.worker_thread.deleteLater)
+
+                # Ensure the timer is stopped after the worker finishes
+                self.worker_thread.finished.connect(self.timer.stop)
 
                 # Step 4: Start the thread
                 self.worker_thread.start()

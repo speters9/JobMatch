@@ -49,6 +49,81 @@ def initialize_population(num_individuals: int, instructors: List[Instructor], c
     return population
 
 
+# def fitness_function(chromosome: List[Tuple[str, str]], instructors: List[Instructor],
+#                      courses: List[Course], max_sections: Dict[str, int],
+#                      max_unique_classes: int, non_preferred_penalty: int = 0,
+#                      course_director_penalty: int = 30) -> int:
+#     """
+#     Calculate the fitness of a chromosome based on the instructor preferences, constraints, and course director roles.
+
+#     Args:
+#         chromosome (List[Tuple[str, str]]): The chromosome representing a potential solution.
+#         instructors (List[Instructor]): List of Instructor objects.
+#         courses (List[Course]): List of Course objects.
+#         max_sections (Dict[str, int]): Maximum number of sections per instructor.
+#         max_unique_classes (int): Maximum number of unique classes an instructor can teach.
+#         non_preferred_penalty (int, optional): Penalty applied for each course assigned to an instructor
+#                                                that is not in their preference list. Defaults to 0.
+#         course_director_penalty (int, optional): Penalty for not assigning a course director the max sections for
+#                                                  their designated course. Defaults to 30.
+
+#     Returns:
+#         int: The fitness score of the chromosome.
+#     """
+#     fitness = 0
+#     instructor_sections = {instructor.name: [] for instructor in instructors}
+#     core_courses = ['PS211', 'PS211FR', 'SocSci311', 'SocSci212']
+
+#     # Step 1: Populate instructor_sections with the courses from the chromosome
+#     for instructor_section, course_section in chromosome:
+#         instructor_name = instructor_section.split('_section_')[0]
+#         course_name = course_section.split('_section_')[0]
+#         instructor_sections[instructor_name].append(course_name)
+
+#     # Step 2: Evaluate fitness for each instructor
+#     for instructor_name, assigned_courses in instructor_sections.items():
+#         unique_courses = set(assigned_courses)
+
+#         # Penalty for exceeding max unique courses or max sections
+#         if len(unique_courses) > max_unique_classes:
+#             fitness -= 25 * (len(unique_courses) - max_unique_classes)
+#         if len(assigned_courses) > max_sections[instructor_name]:
+#             fitness -= 25 * (len(assigned_courses) - max_sections[instructor_name])
+
+#         # Get the instructor object
+#         instructor = next(inst for inst in instructors if inst.name == instructor_name)
+
+#         # Step 3: Loop through assigned courses and calculate fitness based on preferences, course director status, and degree
+#         for course in assigned_courses:
+#             course_obj = next(crs for crs in courses if crs.name == course)
+
+#             # Reward based on preferences
+#             if course in instructor.preferences:
+#                 rank = instructor.preferences.index(course)  # Rank starts at 0
+#                 fitness += (10 - rank)  # Higher rank -> higher reward
+#             else:
+#                 fitness -= non_preferred_penalty  # Penalty for non-preferred courses
+
+#             # Nudge master's degree holders toward core courses
+#             if instructor.degree == 'mas':
+#                 if course in core_courses:
+#                     # Reward for assigning master's degree holders to core courses
+#                     fitness += non_preferred_penalty  # Reward for core courses
+#                 else:
+#                     # Penalize if master's degree holders are assigned non-core courses
+#                     fitness -= non_preferred_penalty  # Penalty for non-core courses
+
+#             # Step 4: Apply course director penalty if the instructor is a course director
+#             for course in assigned_courses:
+#                 course_obj = next(crs for crs in courses if crs.name == course)
+
+#                 if course_obj.course_director == instructor.name:
+#                     course_count = assigned_courses.count(course_obj.name)
+#                     if course_count < min(max_sections[instructor_name], course_obj.sections_available):
+#                         missing_sections = max_sections[instructor_name] - course_count
+#                         fitness -= course_director_penalty * missing_sections
+#     return fitness
+
 def fitness_function(chromosome: List[Tuple[str, str]], instructors: List[Instructor],
                      courses: List[Course], max_sections: Dict[str, int],
                      max_unique_classes: int, non_preferred_penalty: int = 0,
@@ -74,6 +149,10 @@ def fitness_function(chromosome: List[Tuple[str, str]], instructors: List[Instru
     instructor_sections = {instructor.name: [] for instructor in instructors}
     core_courses = ['PS211', 'PS211FR', 'SocSci311', 'SocSci212']
 
+    # Create lookup dictionaries for faster access to instructors and courses
+    course_lookup = {crs.name: crs for crs in courses}
+    instructor_lookup = {inst.name: inst for inst in instructors}
+
     # Step 1: Populate instructor_sections with the courses from the chromosome
     for instructor_section, course_section in chromosome:
         instructor_name = instructor_section.split('_section_')[0]
@@ -90,12 +169,13 @@ def fitness_function(chromosome: List[Tuple[str, str]], instructors: List[Instru
         if len(assigned_courses) > max_sections[instructor_name]:
             fitness -= 25 * (len(assigned_courses) - max_sections[instructor_name])
 
-        # Get the instructor object
-        instructor = next(inst for inst in instructors if inst.name == instructor_name)
+        # Get the instructor object using the lookup
+        instructor = instructor_lookup[instructor_name]
 
         # Step 3: Loop through assigned courses and calculate fitness based on preferences, course director status, and degree
         for course in assigned_courses:
-            course_obj = next(crs for crs in courses if crs.name == course)
+            # Get the course object using the lookup
+            course_obj = course_lookup[course]
 
             # Reward based on preferences
             if course in instructor.preferences:
@@ -114,16 +194,13 @@ def fitness_function(chromosome: List[Tuple[str, str]], instructors: List[Instru
                     fitness -= non_preferred_penalty  # Penalty for non-core courses
 
             # Step 4: Apply course director penalty if the instructor is a course director
-            for course in assigned_courses:
-                course_obj = next(crs for crs in courses if crs.name == course)
+            if course_obj.course_director == instructor.name:
+                course_count = assigned_courses.count(course_obj.name)
+                if course_count < min(max_sections[instructor_name], course_obj.sections_available):
+                    missing_sections = max_sections[instructor_name] - course_count
+                    fitness -= course_director_penalty * missing_sections
 
-                if course_obj.course_director == instructor.name:
-                    course_count = assigned_courses.count(course_obj.name)
-                    if course_count < min(max_sections[instructor_name], course_obj.sections_available):
-                        missing_sections = max_sections[instructor_name] - course_count
-                        fitness -= course_director_penalty * missing_sections
     return fitness
-
 
 def crossover(parent1: List[Tuple[str, str]], parent2: List[Tuple[str, str]]) -> Tuple[List[Tuple[str, str]], List[Tuple[str, str]]]:
     """
@@ -190,7 +267,9 @@ def genetic_algorithm(instructors: List[Instructor], courses: List[Course], max_
         fitness_scores = [fitness_function(chromosome, instructors, courses,
                                            max_sections, max_unique_classes,
                                            non_preferred_penalty) for chromosome in population]
-        max_fitness = max(fitness_scores)
+
+        fitness_scores = np.array(fitness_scores)
+        max_fitness = np.max(fitness_scores)
         fitness_over_time.append(max_fitness)
 
         # Emit progress update
