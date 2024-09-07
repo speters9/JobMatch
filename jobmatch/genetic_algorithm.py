@@ -1,5 +1,6 @@
 import random
 import time
+from multiprocessing import Pool
 from typing import Callable, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -123,6 +124,28 @@ def initialize_population(num_individuals: int, instructors: List[Instructor], c
 #                         missing_sections = max_sections[instructor_name] - course_count
 #                         fitness -= course_director_penalty * missing_sections
 #     return fitness
+def evaluate_population(pool, population, instructors, courses, max_sections, max_unique_classes, non_preferred_penalty):
+    """
+    Evaluate the fitness of the population using a persistent multiprocessing pool.
+
+    Args:
+        pool (Pool): A pre-initialized multiprocessing Pool to avoid re-creating it every time.
+        population (List[List[Tuple[str, str]]]): Population of chromosomes.
+        instructors (List[Instructor]): List of Instructor objects.
+        courses (List[Course]): List of Course objects.
+        max_sections (Dict[str, int]): Maximum number of sections per instructor.
+        max_unique_classes (int): Maximum number of unique classes an instructor can teach.
+        non_preferred_penalty (int): Penalty for non-preferred courses.
+
+    Returns:
+        List[int]: Fitness scores for each chromosome.
+    """
+    fitness_scores = pool.starmap(
+        fitness_function,
+        [(chromosome, instructors, courses, max_sections, max_unique_classes, non_preferred_penalty)
+         for chromosome in population]
+    )
+    return fitness_scores
 
 def fitness_function(chromosome: List[Tuple[str, str]], instructors: List[Instructor],
                      courses: List[Course], max_sections: Dict[str, int],
@@ -263,39 +286,46 @@ def genetic_algorithm(instructors: List[Instructor], courses: List[Course], max_
     population = initialize_population(population_size, instructors, courses)
     fitness_over_time = []
 
-    for generation in tqdm(range(num_generations)):
-        fitness_scores = [fitness_function(chromosome, instructors, courses,
-                                           max_sections, max_unique_classes,
-                                           non_preferred_penalty) for chromosome in population]
+    # for generation in tqdm(range(num_generations)):
+    #     # fitness_scores = [fitness_function(chromosome, instructors, courses,
+    #     #                                    max_sections, max_unique_classes,
+    #     #                                    non_preferred_penalty) for chromosome in population]
 
-        fitness_scores = np.array(fitness_scores)
-        max_fitness = np.max(fitness_scores)
-        fitness_over_time.append(max_fitness)
+    with Pool() as pool:  # Initialize the pool once
+        for generation in tqdm(range(num_generations)):
+            # Use the pre-initialized pool for evaluating fitness
+            fitness_scores = evaluate_population(pool, population, instructors, courses, max_sections,
+                                                 max_unique_classes, non_preferred_penalty)
 
-        # Emit progress update
-        if progress_callback:
-            progress_callback(int((generation / num_generations) * 100))
+            fitness_scores = np.array(fitness_scores)
+            max_fitness = np.max(fitness_scores)
+            fitness_over_time.append(max_fitness)
 
-        sorted_population = [chromosome for _, chromosome in sorted(zip(fitness_scores, population), reverse=True)]
-        top_individuals = sorted_population[:population_size // 2]
+            # Emit progress update
+            if progress_callback:
+                progress_callback(int((generation / num_generations) * 100))
 
-        new_population = []
-        while len(new_population) < population_size:
-            parent1 = random.choice(top_individuals)
-            parent2 = random.choice(top_individuals)
-            child1, child2 = crossover(parent1, parent2)
-            child1 = mutate(child1, instructors)
-            child2 = mutate(child2, instructors)
-            new_population.extend([child1, child2])
+            sorted_population = [chromosome for _, chromosome in sorted(zip(fitness_scores, population), reverse=True)]
+            top_individuals = sorted_population[:population_size // 2]
 
-        population = new_population
+            new_population = []
+            while len(new_population) < population_size:
+                parent1 = random.choice(top_individuals)
+                parent2 = random.choice(top_individuals)
+                child1, child2 = crossover(parent1, parent2)
+                child1 = mutate(child1, instructors)
+                child2 = mutate(child2, instructors)
+                new_population.extend([child1, child2])
 
-        if generation % 50 == 0:
-            time.sleep(0)  # Yield control to other threads
+            population = new_population
 
     final_fitness_scores = [fitness_function(chromosome, instructors, courses,
                                              max_sections, max_unique_classes) for chromosome in population]
     best_solution = population[np.argmax(final_fitness_scores)]
+
+    # Create lookup dictionaries for faster access to instructors and courses
+    course_lookup = {crs.name: crs for crs in courses}
+    instructor_lookup = {inst.name: inst for inst in instructors}
 
     for instructor in instructors:
         instructor.assigned_courses = []
@@ -307,8 +337,8 @@ def genetic_algorithm(instructors: List[Instructor], courses: List[Course], max_
         course_name = course_section.split('_section_')[0]
 
         # find course and instructor
-        course = next(crs for crs in courses if crs.name == course_name)
-        instructor = next(inst for inst in instructors if inst.name == instructor_name)
+        course = course_lookup[course_name]
+        instructor = instructor_lookup[instructor_name]
 
         # assign course to instructor and vice versa
         if len(instructor.assigned_courses) < instructor.max_classes:
