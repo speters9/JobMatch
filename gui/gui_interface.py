@@ -284,18 +284,6 @@ class JobMatchApp(QMainWindow):
         # Set the default light theme
         self.apply_theme(light=True)
 
-    # ------- progress bar specific methods for genetic algorithm --------
-    def store_results(self, results):
-        """Store the results emitted from the worker thread."""
-        self.matching_results = results
-        QMessageBox.information(self, "Matching Results",
-                                "Matching completed successfully! \nUse the dropdown and 'Print Results' button to view results.")
-
-    def update_progress_bar(self, value: int) -> None:
-        """Update the progress bar with the given value."""
-        self.progress_bar.setValue(value)
-
-    # ---------------------------------------------------------------------
     def toggle_theme(self) -> None:
         """Toggle between light and dark themes."""
         current_style = self.styleSheet()
@@ -404,10 +392,6 @@ class JobMatchApp(QMainWindow):
                 self.course_file = None
 
     def run_matching(self) -> None:
-        """
-        Execute the matching algorithm based on the selected method and handle progress updates
-        when using the genetic algorithm. Shows appropriate messages to the user.
-        """
         if not self.instructor_file or not self.course_file:
             QMessageBox.critical(self, "Error", "Please load both instructor and course files before running the matching.")
             return
@@ -439,13 +423,10 @@ class JobMatchApp(QMainWindow):
                 # Step 3: Connect signals
                 self.worker_thread.started.connect(self.worker.run)
                 self.worker.progress.connect(self.update_progress_bar)
-                self.worker.result_signal.connect(self.store_results)  # Connect result signal
+                self.worker.result_signal.connect(self.store_results)
                 self.worker.finished.connect(self.worker_thread.quit)
                 self.worker.finished.connect(self.worker.deleteLater)
                 self.worker_thread.finished.connect(self.worker_thread.deleteLater)
-
-                # Ensure the timer is stopped after the worker finishes
-                self.worker_thread.finished.connect(self.timer.stop)
 
                 # Step 4: Start the thread
                 self.worker_thread.start()
@@ -460,6 +441,16 @@ class JobMatchApp(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Error", f"An error occurred during the matching process: {str(e)}")
 
+    # ------- progress bar specific methods for genetic algorithm --------
+    def update_progress_bar(self, value: int) -> None:
+        self.progress_bar.setValue(value)
+
+    def store_results(self, results):
+        self.matching_results = results
+        QMessageBox.information(self, "Matching Results",
+                                "Matching completed successfully! \nUse the dropdown and 'Print Results' button to view results.")
+
+    # ----------------------------------------------------------------------
     def view_matches(self) -> None:
         """View the matching results based on the selected match type."""
         if not self.matching_results:

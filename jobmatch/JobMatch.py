@@ -204,7 +204,10 @@ class JobMatch:
             'non_preferred_penalty': 5,
             'seed': 8675309
         }
-        return genetic_algorithm(**genetic_kwargs, **kwargs)
+
+        genetic_kwargs.update(kwargs)
+
+        return genetic_algorithm(**genetic_kwargs)
 
     def solve(self, method: str, **kwargs) -> Tuple:
         """Main entry point for solving the matching problem with the selected method.
