@@ -16,9 +16,7 @@ The JobMatch project provides a flexible and modular approach to solving individ
 │
 ├── docs               <- Mkdocs for sphinx-generated documentation
 │
-├── models             <- Trained and serialized models, model predictions, or model summaries (None included yet)
-│
-├── notebooks          <- Jupyter notebooks with examples and base implementation.
+├── notebooks          <- Jupyter notebooks with examples, base implementation, and some output checks.
 │   ├── faces_in_spaces.py
 │   ├── normalize_input_df.py
 │   ├── validate_assignments.py
@@ -33,11 +31,7 @@ The JobMatch project provides a flexible and modular approach to solving individ
 │   ├── linear_program_optimization.py <- Matching via linear programming optimization.
 │   ├── preprocessing.py               <- Ingesting loaded data: preprocessing for passing to the algorithms.
 │   ├── stable_marriage.py             <- Stable marriage algorithm implementation.
-│   ├── global_functions.py            <- General utility functions.
-│   └── archive                        <- Archive of old/unused implementations.
-│       ├── iterative_bipartite_graph_match.py
-│       ├── old_gui_interface.py
-│       └── one_to_one_matching.py
+│   └── global_functions.py            <- General utility functions.
 │
 └── gui                <- Directory for the GUI components and upload module.
      │
