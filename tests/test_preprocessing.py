@@ -6,7 +6,6 @@ import pytest
 from jobmatch.dataclasses import Course, Instructor
 from jobmatch.preprocessing import (build_courses, build_instructors,
                                     create_preference_tuples,
-                                    normalize_preferences, parse_preferences,
                                     print_matching_results)
 
 
@@ -75,16 +74,16 @@ def test_build_courses(sample_course_data):
     assert courses[1].sections_available == 1
 
 
-def test_normalize_preferences():
-    preference_string = "Pol Sci 211; FAS 211 (3), Soc Sci 311, PolSci 477 // Pol ScI 302"
-    normalized = normalize_preferences(preference_string)
-    assert normalized == ['PS211', 'FAS211', 'SocSci311', 'PS477', 'PS302']
+# def test_normalize_preferences():
+#     preference_string = "Pol Sci 211; FAS 211 (3), Soc Sci 311, PolSci 477 // Pol ScI 302"
+#     normalized = normalize_preferences(preference_string)
+#     assert normalized == ['PS211', 'FAS211', 'SocSci311', 'PS477', 'PS302']
 
 
-def test_parse_preferences(sample_course_maps):
-    course_id_map, course_map = sample_course_maps
-    parsed = parse_preferences("Pol Sci 211, SocSci 311", course_id_map, course_map, 'PS211')
-    assert parsed == ['PS211', 'SocSci311']
+# def test_parse_preferences(sample_course_maps):
+#     course_id_map, course_map = sample_course_maps
+#     parsed = parse_preferences("Pol Sci 211, SocSci 311", course_id_map, course_map, 'PS211')
+#     assert parsed == ['PS211', 'SocSci311']
 
 
 def test_create_preference_tuples(sample_instructor_data, sample_preferences, sample_course_data):
@@ -117,22 +116,22 @@ def test_print_matching_results():
     assert match_ranks['Charlie'] == [1]
 
 
-def test_normalize_preferences_edge_cases():
-    assert normalize_preferences("") == []
-    assert normalize_preferences("   Pol Sci 211;   ") == ['PS211']
-    assert normalize_preferences("Pol ScI211,FAS211//Soc Sci311;PolSci477") == ['PS211', 'FAS211', 'SocSci311', 'PS477']
+# def test_normalize_preferences_edge_cases():
+#     assert normalize_preferences("") == []
+#     assert normalize_preferences("   Pol Sci 211;   ") == ['PS211']
+#     assert normalize_preferences("Pol ScI211,FAS211//Soc Sci311;PolSci477") == ['PS211', 'FAS211', 'SocSci311', 'PS477']
 
 
-def test_parse_preferences_edge_cases(sample_course_maps):
-    course_id_map, course_map = sample_course_maps
-    parsed_empty = parse_preferences("", course_id_map, course_map, 'PS211')
-    assert parsed_empty == ['PS211']  # core_class should be added
+# def test_parse_preferences_edge_cases(sample_course_maps):
+#     course_id_map, course_map = sample_course_maps
+#     parsed_empty = parse_preferences("", course_id_map, course_map, 'PS211')
+#     assert parsed_empty == ['PS211']  # core_class should be added
 
-    parsed_no_match = parse_preferences("Unknown Course", course_id_map, course_map, 'PS211')
-    assert parsed_no_match == ['PS211']
+#     parsed_no_match = parse_preferences("Unknown Course", course_id_map, course_map, 'PS211')
+#     assert parsed_no_match == ['PS211']
 
-    parsed_with_core_class = parse_preferences("SocSci 311", course_id_map, course_map, 'PS211')
-    assert parsed_with_core_class == ['SocSci311', 'PS211']
+#     parsed_with_core_class = parse_preferences("SocSci 311", course_id_map, course_map, 'PS211')
+#     assert parsed_with_core_class == ['SocSci311', 'PS211']
 
 
 def test_build_instructors_empty_df():

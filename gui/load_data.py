@@ -146,7 +146,7 @@ def load_and_process_instructor_data(file_path: str) -> pd.DataFrame:
     return df
 
 
-def load_and_process_course_data(file_path: str) -> pd.DataFrame:
+def load_and_process_course_data(file_path: str, term: str) -> pd.DataFrame:
     """
     Load and process Course data from an Excel or CSV file.
 
@@ -162,8 +162,11 @@ def load_and_process_course_data(file_path: str) -> pd.DataFrame:
     df = normalize_column_names(df)
 
     # Validate required columns for Courses
-    required_columns = ['course_name', 'course_id', 'sections_available']
+    required_columns = ['course_name',
+                        'course_id', 'sections_available', 'term']
     validate_columns(df, required_columns, data_type='course')
+
+    df = df[df['term'] == term].reset_index(drop=True)
 
     return df
 
@@ -196,7 +199,7 @@ def load_instructors(file_path: str) -> list[Instructor]:
     return instructors
 
 
-def load_courses(file_path: str) -> list[Course]:
+def load_courses(file_path: str, term: str) -> list[Course]:
     """
     Load and process the courses data from an Excel or CSV file.
 
@@ -206,7 +209,7 @@ def load_courses(file_path: str) -> list[Course]:
     Returns:
         list[Course]: A list of Course objects created from the file data.
     """
-    df = load_and_process_course_data(file_path)
+    df = load_and_process_course_data(file_path, term)
 
     courses = []
     for _, row in df.iterrows():

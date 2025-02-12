@@ -24,7 +24,8 @@ def sample_course_data():
             'American Foreign Policy',
             'International Security Studies'
         ],
-        'sections_available': [2, 1, 1]
+        'sections_available': [2, 1, 1],
+        'term': ['spring', 'spring', 'spring']
     })
 
 def test_load_instructors(sample_instructor_data, tmp_path):
@@ -45,7 +46,7 @@ def test_load_courses(sample_course_data, tmp_path):
     course_file = str(path_course_file)
     sample_course_data.to_csv(course_file, index=False)
 
-    courses = load_courses(course_file)
+    courses = load_courses(course_file, term = "spring")
 
     assert len(courses) == 3
     assert courses[0].name == 'PS211'

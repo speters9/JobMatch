@@ -182,3 +182,5 @@ app.log
 releases/
 releases/bipartite_network/
 images/bipartite_network/
+notebooks/get_historical_enrollment.py
+notebooks/lox_survey_clean.py

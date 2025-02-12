@@ -16,6 +16,48 @@ from jobmatch.JobMatch import JobMatch
 
 
 # Genetic algorithm-specific class for updating progress bar by running in separate thread
+class TermSelectionDialog(QDialog):
+    """
+    A dialog that allows the user to select a term.
+    """
+
+    def __init__(self, terms: List[str], parent: Optional[QWidget] = None) -> None:
+        """
+        Initialize the term selection dialog.
+
+        Args:
+            terms (List[str]): List of available terms.
+            parent (Optional[QWidget], optional): The parent widget. Defaults to None.
+        """
+        super().__init__(parent)
+        self.setWindowTitle("Select Term")
+        self.setMinimumWidth(300)
+
+        layout = QVBoxLayout(self)
+
+        self.label = QLabel("Select a term for the course file:", self)
+        layout.addWidget(self.label)
+
+        self.term_combo = QComboBox(self)
+        self.term_combo.addItems(terms)
+        layout.addWidget(self.term_combo)
+
+        self.button_box = QDialogButtonBox(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
+        self.button_box.accepted.connect(self.accept)
+        self.button_box.rejected.connect(self.reject)
+        layout.addWidget(self.button_box)
+
+    def selected_term(self) -> str:
+        """
+        Get the selected term.
+
+        Returns:
+            str: The selected term.
+        """
+        return self.term_combo.currentText()
+
+
 class Worker(QObject):
     finished = pyqtSignal()
     progress = pyqtSignal(int)
@@ -172,6 +214,7 @@ class JobMatchApp(QMainWindow):
         self.matching_results = None  # To store the results after the first run
         self.job_match_instance = None  # To store the instance of JobMatch
         self.instructions_dialog = None
+        self.selected_term = None
         self.set_seed = set_all_seeds
         self.create_widgets()
 
@@ -343,11 +386,16 @@ class JobMatchApp(QMainWindow):
             label (QLabel): The label where the file was dropped.
             file_path (str): The path to the dropped file.
         """
-        # print(f"File dropped: {file_path}")  # Debug statement
         if "Instructors" in label.text():
             self.load_instructor_file(file_path)
         elif "Courses" in label.text():
-            self.load_course_file(file_path)
+            # Prompt user to select a term
+            terms = ["spring", "summer", "fall"]  # Example terms
+            term_dialog = TermSelectionDialog(terms, self)
+            if term_dialog.exec_() == QDialog.Accepted:
+                selected_term = term_dialog.selected_term()
+                self.selected_term = selected_term  # Store the selected term
+                self.load_course_file(file_path)
 
     def load_instructor_file(self, file_path: str) -> None:
         """
@@ -381,7 +429,8 @@ class JobMatchApp(QMainWindow):
             self.course_file = file_path
             # print(f"Loading course file: {file_path}")  # Debug statement
             try:
-                self.courses = load_courses(self.course_file)
+                self.courses = load_courses(
+                    self.course_file, term=self.selected_term)
                 # print(f"Courses loaded: {self.courses}")  # Debug statement
                 if self.courses:
                     QMessageBox.information(self, "File Loaded", f"Course file loaded: {os.path.basename(self.course_file)}")

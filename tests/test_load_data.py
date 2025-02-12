@@ -25,6 +25,7 @@ def sample_course_data():
         'course_name': ['PS101', 'PS102'],
         'course_id': ['101', '102'],
         'sections_available': [2, 1],
+        'term': ['spring', 'spring'],
         'extra_column': ['extra1', 'extra2']  # Extraneous column
     })
 
@@ -117,7 +118,7 @@ def test_load_and_process_course_data(sample_course_data, tmp_path):
     file_path = tmp_path / "sample_courses.csv"
     sample_course_data.to_csv(file_path, index=False)
 
-    df_processed = load_and_process_course_data(str(file_path))
+    df_processed = load_and_process_course_data(str(file_path), term='spring')
     required_columns = ['course_name', 'course_id', 'sections_available']
 
     assert all(col in df_processed.columns for col in required_columns)

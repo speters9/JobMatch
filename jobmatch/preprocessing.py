@@ -1,3 +1,4 @@
+#%%
 import re
 from collections import namedtuple
 from dataclasses import dataclass
@@ -36,113 +37,121 @@ def build_courses(df: pd.DataFrame) -> List[Course]:
     return course_list
 
 
-def normalize_preferences(preference_string: str) -> List[str]:
-    """
-    Normalize a preference string by standardizing course identifiers, removing extraneous characters,
-    and splitting the string into a list of preferences.
+def get_ordered_preferences(row, courses: List):
+    ranked_courses = {course: row[course]
+                      for course in courses if pd.notna(row[course])}
+    # Sort by rank (ascending)
+    sorted_courses = sorted(ranked_courses, key=ranked_courses.get)
+    return sorted_courses
 
-    Args:
-        preference_string (str): The raw preference string to be normalized.
 
-    Returns:
-        List[str]: A list of normalized preferences.
-    """
-    # normalize string dividers
-    preference_string = preference_string.replace('//', ';')
+# def normalize_preferences(preference_string: str) -> List[str]:
+#     """
+#     Normalize a preference string by standardizing course identifiers, removing extraneous characters,
+#     and splitting the string into a list of preferences.
 
-    # Normalize course identifiers by replacing variations of "Pol Sci", SocSci or FAS
-    preferences = re.sub(r"pol(i)?\s*sc(i)?\s*", "PS", preference_string, flags=re.IGNORECASE)
-    preferences = re.sub(r"soc\s*sc(i)?\s*", "SocSci", preferences, flags=re.IGNORECASE)
-    preferences = re.sub(r"fas\s?", "FAS", preferences, flags=re.IGNORECASE)
+#     Args:
+#         preference_string (str): The raw preference string to be normalized.
 
-    # Split the preferences by semicolons or commas
-    preferences_list = re.split(r"[;,]", preferences)
+#     Returns:
+#         List[str]: A list of normalized preferences.
+#     """
+#     # normalize string dividers
+#     preference_string = preference_string.replace('//', ';')
 
-    # Process each preference individually
-    processed_preferences = []
-    for pref in preferences_list:
-        # Remove numbers in parentheses
-        pref = re.sub(r"\s*\(\d+\)\s*", "", pref.strip())
+#     # Normalize course identifiers by replacing variations of "Pol Sci", SocSci or FAS
+#     preferences = re.sub(r"pol(i)?\s*sc(i)?\s*", "PS", preference_string, flags=re.IGNORECASE)
+#     preferences = re.sub(r"soc\s*sc(i)?\s*", "SocSci", preferences, flags=re.IGNORECASE)
+#     preferences = re.sub(r"fas\s?", "FAS", preferences, flags=re.IGNORECASE)
 
-        # Remove any extraneous characters
-        pref = re.sub(r"[^a-zA-Z0-9\s?:/-]", "", pref.strip())
+#     # Split the preferences by semicolons or commas
+#     preferences_list = re.split(r"[;,]", preferences)
 
-        # Normalize spacing
-        pref = re.sub(r"\s+", " ", pref).strip()
+#     # Process each preference individually
+#     processed_preferences = []
+#     for pref in preferences_list:
+#         # Remove numbers in parentheses
+#         pref = re.sub(r"\s*\(\d+\)\s*", "", pref.strip())
 
-        # Add to the list if it starts with 'PS', 'SocSci', 'FAS', or a number
-        if re.match(r"^(PS|SocSci|FAS|\d)", pref, flags=re.IGNORECASE):
-            processed_preferences.append(pref)
+#         # Remove any extraneous characters
+#         pref = re.sub(r"[^a-zA-Z0-9\s?:/-]", "", pref.strip())
 
-    return processed_preferences
+#         # Normalize spacing
+#         pref = re.sub(r"\s+", " ", pref).strip()
+
+#         # Add to the list if it starts with 'PS', 'SocSci', 'FAS', or a number
+#         if re.match(r"^(PS|SocSci|FAS|\d)", pref, flags=re.IGNORECASE):
+#             processed_preferences.append(pref)
+
+#     return processed_preferences
 
 # Step 2: Function to normalize and parse input strings
 
 
-def parse_preferences(preference_string: str, course_id_map: Dict[str, str], course_map: Dict[str, str], core_class: str) -> List[str]:
-    """
-    Parse a preference string, standardize course names using a course ID map, and optionally add a core class
-    if it is not already included.
+# def parse_preferences(preference_string: str, course_id_map: Dict[str, str], course_map: Dict[str, str], core_class: str) -> List[str]:
+#     """
+#     Parse a preference string, standardize course names using a course ID map, and optionally add a core class
+#     if it is not already included.
 
-    Args:
-        preference_string (str): The raw preference string to be parsed.
-        course_id_map (Dict[str, str]): A dictionary mapping course identifiers to standardized course names.
-        course_map (Dict[str, str]): A dictionary mapping course names to standardized course identifiers.
-        core_class (str): The core class that should be included in the preferences list.
+#     Args:
+#         preference_string (str): The raw preference string to be parsed.
+#         course_id_map (Dict[str, str]): A dictionary mapping course identifiers to standardized course names.
+#         course_map (Dict[str, str]): A dictionary mapping course names to standardized course identifiers.
+#         core_class (str): The core class that should be included in the preferences list.
 
-    Returns:
-        List[str]: A list of standardized course preferences.
-    """
-    # Replace // with semicolon for consistent splitting
-    preferences = normalize_preferences(preference_string)
+#     Returns:
+#         List[str]: A list of standardized course preferences.
+#     """
+#     # Replace // with semicolon for consistent splitting
+#     preferences = normalize_preferences(preference_string)
 
-    # Standardize course names
-    standardized_preferences = []
-    for pref in preferences:
-        pref = pref.strip()
-        matched = False
+#     # Standardize course names
+#     standardized_preferences = []
+#     for pref in preferences:
+#         pref = pref.strip()
+#         matched = False
 
-        # First, check if any course number is in the string
-        for course_id, course_name in course_id_map.items():
-            if course_id in pref:
-                standardized_preferences.append(course_name)
-                matched = True
-                break
+#         # First, check if any course number is in the string
+#         for course_id, course_name in course_id_map.items():
+#             if course_id in pref:
+#                 standardized_preferences.append(course_name)
+#                 matched = True
+#                 break
 
-        # If no course number is found, use fuzzy matching on the course name
-        if not matched:
-            possible_match, score, idx = process.extractOne(pref, course_map.keys(), scorer=fuzz.partial_ratio)
-            if score > 90:  # 90 works well as a threshold
-                standardized_preferences.append(course_map[possible_match])
-                matched = True
-            else:
-                # Ask user for input if the match is not found
-                print(f"\n'{pref}' could not be matched automatically.")
-                user_input = input("Please enter the correct course identifier or name (or press Enter to skip): \n").strip()
+#         # If no course number is found, use fuzzy matching on the course name
+#         if not matched:
+#             possible_match, score, idx = process.extractOne(pref, course_map.keys(), scorer=fuzz.partial_ratio)
+#             if score > 90:  # 90 works well as a threshold
+#                 standardized_preferences.append(course_map[possible_match])
+#                 matched = True
+#             else:
+#                 # Ask user for input if the match is not found
+#                 print(f"\n'{pref}' could not be matched automatically.")
+#                 user_input = input("Please enter the correct course identifier or name (or press Enter to skip): \n").strip()
 
-                if user_input:
-                    # Check if the user input corresponds to an existing course_id or course_name
-                    if user_input in course_id_map:
-                        standardized_preferences.append(course_id_map[user_input])
-                    elif user_input in course_map:
-                        standardized_preferences.append(course_map[user_input])
-                    else:
-                        # Add user input to course_map and course_id_map
-                        new_course_name = user_input
-                        new_course_id = input(
-                            f"Name not recognized. Entering as a new course ID. \nPlease enter the identifier for '{new_course_name}': \n").strip()
-                        course_map[new_course_name] = new_course_id
-                        course_id_map[new_course_id] = new_course_id
-                        standardized_preferences.append(new_course_id)
-                        print(f"Added '{new_course_name}' with identifier '{new_course_id}' to the course map.")
-                else:
-                    standardized_preferences.append("UNKNOWN")
+#                 if user_input:
+#                     # Check if the user input corresponds to an existing course_id or course_name
+#                     if user_input in course_id_map:
+#                         standardized_preferences.append(course_id_map[user_input])
+#                     elif user_input in course_map:
+#                         standardized_preferences.append(course_map[user_input])
+#                     else:
+#                         # Add user input to course_map and course_id_map
+#                         new_course_name = user_input
+#                         new_course_id = input(
+#                             f"Name not recognized. Entering as a new course ID. \nPlease enter the identifier for '{new_course_name}': \n").strip()
+#                         course_map[new_course_name] = new_course_id
+#                         course_id_map[new_course_id] = new_course_id
+#                         standardized_preferences.append(new_course_id)
+#                         print(f"Added '{new_course_name}' with identifier '{new_course_id}' to the course map.")
+#                 else:
+#                     standardized_preferences.append("UNKNOWN")
 
-    # add preferred primary core class if not in list
-    if core_class and core_class not in standardized_preferences:
-        standardized_preferences.append(core_class)
+#     # add preferred primary core class if not in list
+#     if core_class and core_class not in standardized_preferences:
+#         standardized_preferences.append(core_class)
 
-    return standardized_preferences
+#     return standardized_preferences
 
 
 def create_preference_tuples(instructors: List[Instructor], courses: List[Course]) -> Dict[str, List[namedtuple]]:
@@ -254,23 +263,29 @@ if __name__ == "__main__":
 
 
     # load preferences df and order by instructor importance
-    pref_df = pd.read_excel(wd/ "data/raw/Teaching_Preferences_cao21Aug.xlsx")
-    pref_df = pref_df.set_index('Name')
+    pref_df = pd.read_csv(wd/ "data/03_processed/instructors_with_course_preferences.csv")
+    pref_df = pref_df.set_index('name')
     pref_df = pref_df.reindex(instructor_max.keys()).reset_index()
 
-    course_df = pd.read_csv(wd / "data/raw/course_data.csv")
-    inst_df = pd.read_csv(wd / "data/raw/instructor_info.csv")
+    course_df = pd.read_csv(wd / "data/03_processed/course_data_with_course_directors.csv")
+    inst_df = pd.read_csv(wd / "data/00_reference/instructor_info.csv")
 
     # get individual preferences from free response, add in core preferences last, if not included
     individuals = {}
-    for item in pref_df.itertuples():
-        name = item[1]
-        core_class = core_dict.get(item[6], 'SocSci311')
-        prefs = item[7]
-        if not pd.isna(prefs):
-            individuals[name] = parse_preferences(prefs, course_id_map, course_map, core_class)
-        else:
-            continue
+    for _, item in pref_df.iterrows():
+        name = item[0]
+        core_class = item[3]
+        prefs = []
+        for i in range(7, 13):
+            if item[i] and pd.notna(item[i]):
+                prefs.append(item[i].strip())
+            else:
+                continue
+        if prefs and core_class not in prefs:
+            prefs.append(core_class)
+        if not prefs:
+            prefs = []
+        individuals[name] = prefs
 
     instructor_list = build_instructors(inst_df,individuals)
     course_list = build_courses(course_df)
@@ -279,3 +294,5 @@ if __name__ == "__main__":
 
     preferences_with_ranks = create_preference_tuples(instructor_list, course_list)
     pprint(preferences_with_ranks)
+
+# %%

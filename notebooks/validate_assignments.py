@@ -6,7 +6,7 @@ from pyprojroot.here import here
 wd = here()
 pd.set_option('display.max_columns', None)
 
-
+cao_date = "25sep"
 # %%
 # df  = pd.read_excel(wd / "data/validate/revised_instructor_matches.xlsx")
 # instr_matches = df['Assigned Courses'].str.split(", ", expand = True)
@@ -15,12 +15,12 @@ pd.set_option('display.max_columns', None)
 
 # instr_matches.to_excel(wd / "data/validate/revised_instructor_matches.xlsx", index= False)
 # %%
-course_df = pd.read_csv(wd / "data/validate/course_data.csv")
+course_df = pd.read_csv(wd / "data/validate/course_data_with_course_directors.csv")
 inst_df = pd.read_csv(wd / "data/validate/instructors_with_preferences.csv")
 
 
 # load current working matches
-df = pd.read_excel(wd / "data/validate/revised_instructor_matches.xlsx")
+df = pd.read_excel(wd / "data/validate/revised_instructor_matches_cao{cao_date}.xlsx")
 
 # create counter of current matches
 assignments = pd.melt(df[['class_1', 'class_2', 'class_3']]).dropna(subset=['value'])
@@ -63,6 +63,6 @@ course_instructors_df = course_instructors_df[col_order]
 #df = df.drop(['Assigned Courses', 'Ranks'], axis =1)
 
 #%%
-course_instructors_df.to_excel(wd / "data/validate/revised_course_matches.xlsx", index= False)
+course_instructors_df.to_excel(wd / f"data/validate/revised_course_matches_cao{cao_date}.xlsx", index= False)
 
-df.to_excel(wd / "data/validate/working_instructor_matches.xlsx", index= False)
+#df.to_excel(wd / "data/validate/working_instructor_matches.xlsx", index= False)

@@ -137,6 +137,7 @@ def test_course_file(tmp_path):
         "Course ID": ["101", "102", "103"],
         "Course Description": ["The first course", "The second course", "The Third course"],
         "Sections Available": [2, 1, 1],
+        'Term': ['spring', 'spring', 'spring']
     }
     df_courses = pd.DataFrame(course_data)
 
@@ -234,18 +235,48 @@ def test_successful_instructor_file_load(empty_job_match_app, qtbot, mocker, tes
 
 def test_successful_course_file_load(empty_job_match_app, qtbot, mocker, test_course_file):
     QTest.mousePress(empty_job_match_app.course_label, Qt.LeftButton)
+    from gui.gui_interface import TermSelectionDialog
 
+    # Mock QMessageBox.information
     mock_msg_box = mocker.patch('PyQt5.QtWidgets.QMessageBox.information', return_value=None)
 
+    # Create a real instance of the TermSelectionDialog and mock its behavior
+    real_dialog = TermSelectionDialog(
+        ["spring", "summer", "fall"], empty_job_match_app)
+
+    # Set the term in the combo box
+    real_dialog.term_combo.setCurrentText('spring')
+
+    # Find the OK button in the dialog
+    ok_button = real_dialog.button_box.button(QDialogButtonBox.Ok)
+
+    # Mock the exec_ method to automatically click OK
+    def mock_exec():
+        # Simulate user clicking "OK"
+        QTest.mouseClick(ok_button, Qt.LeftButton)
+        QApplication.processEvents()
+        real_dialog.accept()
+        return QDialog.Accepted
+
+    mocker.patch.object(real_dialog, 'exec_', side_effect=mock_exec)
+    mocker.patch('gui.gui_interface.TermSelectionDialog',
+                 return_value=real_dialog)
+
+    # Trigger the file drop
     empty_job_match_app.handle_file_drop(empty_job_match_app.course_label, str(test_course_file))
 
-    qtbot.waitUntil(lambda: mock_msg_box.call_count > 0, timeout=1000)
+    # Verify the dialog was called
+    assert real_dialog.exec_.called
 
+    # Verify success message was shown
+    qtbot.waitUntil(lambda: mock_msg_box.call_count > 0, timeout=1000)
     mock_msg_box.assert_called_once()
     assert "File Loaded" in mock_msg_box.call_args[0][1]
 
+    # Verify file was loaded and data stored
     assert empty_job_match_app.course_file == str(test_course_file)
     assert empty_job_match_app.courses is not None
+    assert empty_job_match_app.selected_term == 'spring'
 
 # ------------------------- test matching --------------------
 # def test_progress_bar_updates_during_genetic_algorithm(job_match_app, qtbot, mocker):

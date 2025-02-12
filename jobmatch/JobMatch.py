@@ -1,3 +1,4 @@
+# %%
 import copy
 import logging
 from typing import Callable, Dict, List, Optional, Tuple
@@ -5,12 +6,13 @@ from typing import Callable, Dict, List, Optional, Tuple
 import networkx as nx
 
 from gui.load_data import load_courses, load_instructors
+# solvers
 from jobmatch.bipartite_graph_match import bipartite_matching_solver
 from jobmatch.dataclasses import Course, Instructor
 from jobmatch.genetic_algorithm import genetic_algorithm
 from jobmatch.linear_program_optimization import \
     iterative_linear_programming_solver
-from jobmatch.preprocessing import create_preference_tuples, parse_preferences
+from jobmatch.preprocessing import create_preference_tuples
 from jobmatch.stable_marriage import stable_marriage_solver
 
 logging.basicConfig(level=logging.INFO,
@@ -240,21 +242,14 @@ class JobMatch:
 # %%
 if __name__ == "__main__":
 
-    from pprint import pprint
-
-    import pandas as pd
     from pyprojroot.here import here
-
-    from jobmatch.class_data import (core_dict, course_id_map, course_map,
-                                     course_slots, instructor_max)
-    from jobmatch.preprocessing import (build_courses, build_instructors,
-                                        create_preference_tuples,
-                                        parse_preferences,
-                                        print_matching_results)
     wd = here()
 
-    instructor_list = load_instructors(str(wd / "data/validate/instructors_with_preferences.csv"))
-    course_list = load_courses(str(wd / "data/validate/course_data_with_course_directors.csv"))
+    instructor_list = load_instructors(
+        str(wd / "data/03_processed/instructors_with_course_preferences.csv"))
+    course_list = load_courses(
+        str(wd / "data/03_processed/course_data_with_course_directors.csv"),
+        term='fall')
 
     # Create a solver factory
     factory = JobMatch(instructor_list, course_list)
@@ -290,3 +285,5 @@ if __name__ == "__main__":
     print("")
     factory.print_match_results(matches_gen[1])
     print("")
+
+# %%
