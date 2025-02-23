@@ -20,115 +20,63 @@ def initialize_population(num_individuals: int, instructors: List[Instructor], c
         courses (List[Course]): List of Course objects.
 
     Returns:
-        List[List[Tuple[str, str]]]: A list of chromosomes where each chromosome is a list of (instructor_section, course_section) tuples.
-        The maximum length of the chromosome list is sum(instructor.max_classes) for all instructors.
+        List[List[Tuple[str, str]]]: A list of chromosomes where each chromosome is a list of
+        (instructor_section, course_section) tuples.
     """
     population = []
-    instructor_sections = [
-        f"{instructor.name}_section_{i+1}" for instructor in instructors for i in range(instructor.max_classes)
-    ]
     instructor_lookup = {inst.name: inst for inst in instructors}
 
     for _ in range(num_individuals):
         chromosome = []
-        for course in courses:
-            # If there's a course director, assign them to their sections first
-            if course.course_director:
-                director = instructor_lookup.get(course.course_director, None)
-                if director:
-                    for section in range(min(course.sections_available, director.max_classes)):
-                        chromosome.append((f"{director.name}_section_{section+1}", f"{course.name}_section_{section+1}"))
+        # Create a fresh copy of available instructor sections for each chromosome
+        available_instructor_sections = [
+            f"{instructor.name}_section_{i+1}"
+            for instructor in instructors
+            for i in range(instructor.max_classes)
+        ]
 
-            # Randomly assign other instructors to remaining sections
-            for section in range(course.sections_available - len([pair for pair in chromosome if pair[1].startswith(f"{course.name}_section")])):
-                instructor_section = random.choice(instructor_sections)
-                chromosome.append((instructor_section, f"{course.name}_section_{section+1}"))
+        # Process each course
+        for course in courses:
+            remaining_sections = course.sections_available
+
+            # Handle course director assignments first
+            if course.course_director:
+                director = instructor_lookup.get(course.course_director)
+                if director:
+                    # Find all available sections for this director
+                    director_sections = [
+                        sect for sect in available_instructor_sections
+                        if sect.startswith(f"{director.name}_section_")
+                    ]
+
+                    # Calculate how many sections to assign
+                    sections_to_assign = min(len(director_sections), remaining_sections)
+
+                    # Assign sections
+                    for i in range(sections_to_assign):
+                        if director_sections:  # Double check we have sections left
+                            section = director_sections[i]
+                            if section in available_instructor_sections:  # Verify section is still available
+                                available_instructor_sections.remove(section)
+                                chromosome.append((section, f"{course.name}_section_{i+1}"))
+                                remaining_sections -= 1
+
+            # Assign remaining sections randomly
+            while remaining_sections > 0 and available_instructor_sections:
+                instructor_section = random.choice(available_instructor_sections)
+                available_instructor_sections.remove(instructor_section)
+                section_num = course.sections_available - remaining_sections + 1
+                chromosome.append((instructor_section, f"{course.name}_section_{section_num}"))
+                remaining_sections -= 1
 
         population.append(chromosome)
 
     return population
 
-
-# def fitness_function(chromosome: List[Tuple[str, str]], instructors: List[Instructor],
-#                      courses: List[Course], max_sections: Dict[str, int],
-#                      max_unique_classes: int, non_preferred_penalty: int = 0,
-#                      course_director_penalty: int = 30) -> int:
-#     """
-#     Calculate the fitness of a chromosome based on the instructor preferences, constraints, and course director roles.
-
-#     Args:
-#         chromosome (List[Tuple[str, str]]): The chromosome representing a potential solution.
-#         instructors (List[Instructor]): List of Instructor objects.
-#         courses (List[Course]): List of Course objects.
-#         max_sections (Dict[str, int]): Maximum number of sections per instructor.
-#         max_unique_classes (int): Maximum number of unique classes an instructor can teach.
-#         non_preferred_penalty (int, optional): Penalty applied for each course assigned to an instructor
-#                                                that is not in their preference list. Defaults to 0.
-#         course_director_penalty (int, optional): Penalty for not assigning a course director the max sections for
-#                                                  their designated course. Defaults to 30.
-
-#     Returns:
-#         int: The fitness score of the chromosome.
-#     """
-#     fitness = 0
-#     instructor_sections = {instructor.name: [] for instructor in instructors}
-#     core_courses = ['PS211', 'PS211FR', 'SocSci311', 'SocSci212']
-
-#     # Step 1: Populate instructor_sections with the courses from the chromosome
-#     for instructor_section, course_section in chromosome:
-#         instructor_name = instructor_section.split('_section_')[0]
-#         course_name = course_section.split('_section_')[0]
-#         instructor_sections[instructor_name].append(course_name)
-
-#     # Step 2: Evaluate fitness for each instructor
-#     for instructor_name, assigned_courses in instructor_sections.items():
-#         unique_courses = set(assigned_courses)
-
-#         # Penalty for exceeding max unique courses or max sections
-#         if len(unique_courses) > max_unique_classes:
-#             fitness -= 25 * (len(unique_courses) - max_unique_classes)
-#         if len(assigned_courses) > max_sections[instructor_name]:
-#             fitness -= 25 * (len(assigned_courses) - max_sections[instructor_name])
-
-#         # Get the instructor object
-#         instructor = next(inst for inst in instructors if inst.name == instructor_name)
-
-#         # Step 3: Loop through assigned courses and calculate fitness based on preferences, course director status, and degree
-#         for course in assigned_courses:
-#             course_obj = next(crs for crs in courses if crs.name == course)
-
-#             # Reward based on preferences
-#             if course in instructor.preferences:
-#                 rank = instructor.preferences.index(course)  # Rank starts at 0
-#                 fitness += (10 - rank)  # Higher rank -> higher reward
-#             else:
-#                 fitness -= non_preferred_penalty  # Penalty for non-preferred courses
-
-#             # Nudge master's degree holders toward core courses
-#             if instructor.degree == 'mas':
-#                 if course in core_courses:
-#                     # Reward for assigning master's degree holders to core courses
-#                     fitness += non_preferred_penalty  # Reward for core courses
-#                 else:
-#                     # Penalize if master's degree holders are assigned non-core courses
-#                     fitness -= non_preferred_penalty  # Penalty for non-core courses
-
-#             # Step 4: Apply course director penalty if the instructor is a course director
-#             for course in assigned_courses:
-#                 course_obj = next(crs for crs in courses if crs.name == course)
-
-#                 if course_obj.course_director == instructor.name:
-#                     course_count = assigned_courses.count(course_obj.name)
-#                     if course_count < min(max_sections[instructor_name], course_obj.sections_available):
-#                         missing_sections = max_sections[instructor_name] - course_count
-#                         fitness -= course_director_penalty * missing_sections
-#     return fitness
-
-
 def fitness_function(chromosome: List[Tuple[str, str]], instructors: List[Instructor],
                      courses: List[Course], max_sections: Dict[str, int],
-                     max_unique_classes: int, non_preferred_penalty: int = 0,
-                     course_director_penalty: int = 30) -> int:
+                     max_unique_classes: int, non_preferred_penalty: int = 3,
+                     course_director_penalty: int = 30, unfilled_penalty: int = 25) -> int:
     """
     Calculate the fitness of a chromosome based on the instructor preferences, constraints, and course director roles.
 
@@ -148,17 +96,21 @@ def fitness_function(chromosome: List[Tuple[str, str]], instructors: List[Instru
     """
     fitness = 0
     instructor_sections = {instructor.name: [] for instructor in instructors}
-    core_courses = ['PS211', 'PS211FR', 'SocSci311', 'SocSci212']
+    core_courses = ['PS211', 'PS211FR', 'SS311', 'SS212']
 
     # Create lookup dictionaries for faster access to instructors and courses
     course_lookup = {crs.name: crs for crs in courses}
     instructor_lookup = {inst.name: inst for inst in instructors}
+
+    # Track filled sections for each course
+    filled_sections = {crs.name: 0 for crs in courses}
 
     # Step 1: Populate instructor_sections with the courses from the chromosome
     for instructor_section, course_section in chromosome:
         instructor_name = instructor_section.split('_section_')[0]
         course_name = course_section.split('_section_')[0]
         instructor_sections[instructor_name].append(course_name)
+        filled_sections[course_name] += 1  # Count filled sections
 
     # Step 2: Evaluate fitness for each instructor
     for instructor_name, assigned_courses in instructor_sections.items():
@@ -175,13 +127,15 @@ def fitness_function(chromosome: List[Tuple[str, str]], instructors: List[Instru
 
         # Step 3: Loop through assigned courses and calculate fitness based on preferences, course director status, and degree
         for course in assigned_courses:
+            original_fitness = fitness
             # Get the course object using the lookup
             course_obj = course_lookup[course]
 
             # Reward based on preferences
             if course in instructor.preferences:
                 rank = instructor.preferences.index(course)  # Rank starts at 0
-                fitness += (10 - rank)  # Higher rank -> higher reward
+                # Higher rank -> higher reward
+                fitness += (30 - rank*non_preferred_penalty)
             else:
                 fitness -= non_preferred_penalty  # Penalty for non-preferred courses
 
@@ -200,6 +154,13 @@ def fitness_function(chromosome: List[Tuple[str, str]], instructors: List[Instru
                 if course_count < min(max_sections[instructor_name], course_obj.sections_available):
                     missing_sections = max_sections[instructor_name] - course_count
                     fitness -= course_director_penalty * missing_sections
+
+    # Penalty for unfilled Courses
+    for course_name, filled in filled_sections.items():
+        total_sections = course_lookup[course_name].sections_available
+        unfilled = total_sections - filled
+        if unfilled > 0:
+            fitness -= unfilled_penalty * unfilled  # Penalize unfilled sections
 
     return fitness
 
@@ -231,104 +192,243 @@ def mutate(chromosome: List[Tuple[str, str]], instructors: List[Instructor]) -> 
     Returns:
         List[Tuple[str, str]]: The mutated chromosome.
     """
-    gene_index = random.randint(0, len(chromosome) - 1)
-    instructor = random.choice(instructors)
-    new_section = f"{instructor.name}_section_{random.randint(1, instructor.max_classes)}"
-    chromosome[gene_index] = (new_section, chromosome[gene_index][1])
+    max_mutations = max(1, len(chromosome) // 10) # Max mutation of 10% to scale with problem size
+    num_mutations = random.randint(1, max_mutations)
+    for _ in range(num_mutations):
+        gene_index = random.randint(0, len(chromosome) - 1)
+        instructor = random.choice(instructors)
+        new_section = f"{instructor.name}_section_{random.randint(1, instructor.max_classes)}"
+        chromosome[gene_index] = (new_section, chromosome[gene_index][1])
     return chromosome
+
+def repair_chromosome(chromosome: List[Tuple[str, str]],
+                              instructors: List[Instructor],
+                              courses: List[Course],
+                              max_sections: Dict[str, int],
+                              max_unique_classes: int) -> List[Tuple[str, str]]:
+    """
+    Partially repair a chromosome by fixing only the assignments that are in violation.
+
+    This function checks each assignment and if it violates a constraint,
+    it attempts to replace it with a valid alternative. If no replacement is found,
+    that assignment is removed.
+
+    Args:
+        chromosome: List of (instructor_section, course_section) assignments.
+        instructors: List of Instructor objects.
+        courses: List of Course objects.
+        max_sections: Dictionary mapping instructor names to their maximum sections.
+        max_unique_classes: Maximum unique courses an instructor can teach.
+
+    Returns:
+        A partially repaired chromosome.
+    """
+    # Build assignment counts.
+    instructor_assignments = {inst.name: [] for inst in instructors}
+    course_assignments = {course.name: [] for course in courses}
+
+    for inst_section, course_section in chromosome:
+        inst_name = inst_section.split('_section_')[0]
+        course_name = course_section.split('_section_')[0]
+        instructor_assignments[inst_name].append(course_name)
+        course_assignments[course_name].append(inst_name)
+
+    repaired = list(chromosome)  # Work on a copy
+
+    for i, (inst_section, course_section) in enumerate(repaired):
+        inst_name = inst_section.split('_section_')[0]
+        course_name = course_section.split('_section_')[0]
+        course_obj = next((c for c in courses if c.name == course_name), None)
+
+        # Check instructor capacity.
+        if len(instructor_assignments[inst_name]) > max_sections[inst_name]:
+            # Try to find a replacement instructor with available capacity.
+            replacement = None
+            for inst in instructors:
+                # Check capacity
+                if len(instructor_assignments[inst.name]) < max_sections[inst.name]:
+                    # Allow if this instructor already teaches the course
+                    # or if they haven't reached their unique course limit.
+                    if (course_name in instructor_assignments[inst.name] or
+                        len(set(instructor_assignments[inst.name])) < max_unique_classes):
+                        replacement = inst.name
+                        break
+            if replacement:
+                # Create a new assignment for the replacement.
+                new_inst_section = f"{replacement}_section_{len(instructor_assignments[replacement]) + 1}"
+                new_assignment = (new_inst_section, course_section)
+                # Update counts: remove from original, add to replacement.
+                instructor_assignments[inst_name].remove(course_name)
+                instructor_assignments[replacement].append(course_name)
+                # Update the chromosome.
+                repaired[i] = new_assignment
+            else:
+                # If no replacement is found, remove the assignment.
+                repaired[i] = None
+                instructor_assignments[inst_name].remove(course_name)
+                course_assignments[course_name].remove(inst_name)
+
+        # Check course section limits.
+        if course_obj and len(course_assignments[course_name]) > course_obj.sections_available:
+            # Remove the extra assignment.
+            repaired[i] = None
+            course_assignments[course_name].remove(inst_name)
+            if course_name in instructor_assignments[inst_name]:
+                instructor_assignments[inst_name].remove(course_name)
+
+    # Filter out any removed assignments.
+    repaired = [assignment for assignment in repaired if assignment is not None]
+
+    return repaired
+
+def is_valid_solution(chromosome: List[Tuple[str, str]], instructors: List[Instructor],
+                     courses: List[Course], max_sections: Dict[str, int],
+                     max_unique_classes: int) -> bool:
+    """
+    Check if a chromosome satisfies all constraints.
+    """
+    instructor_counts = {}
+    instructor_courses = {}
+    course_sections = {}
+
+    for inst_section, course_section in chromosome:
+        inst_name = inst_section.split('_section_')[0]
+        course_name = course_section.split('_section_')[0]
+
+        # Count instructor assignments
+        instructor_counts[inst_name] = instructor_counts.get(inst_name, 0) + 1
+        if instructor_counts[inst_name] > max_sections[inst_name]:
+            return False
+
+        # Track unique courses per instructor
+        if inst_name not in instructor_courses:
+            instructor_courses[inst_name] = set()
+        instructor_courses[inst_name].add(course_name)
+        if len(instructor_courses[inst_name]) > max_unique_classes:
+            return False
+
+        # Track course sections
+        course_sections[course_name] = course_sections.get(course_name, 0) + 1
+        course = next(c for c in courses if c.name == course_name)
+        if course_sections[course_name] > course.sections_available:
+            return False
+
+        # Check course director constraint
+        if course.course_director and course.course_director != inst_name:
+            if course_sections[course_name] == 1:  # First section must be taught by director
+                return False
+
+    return True
 
 
 def genetic_algorithm(instructors: List[Instructor], courses: List[Course], max_sections: Dict[str, int],
-                      max_unique_classes: int, num_generations: int = 500, population_size: int = 500,
-                      non_preferred_penalty: int = 3, seed: int = 42, progress_callback: Optional[Callable[[int], None]] = None,
-                      early_stopping_window: int = 250, min_fitness_change: float = 1e-4) -> Tuple[List['Instructor'], List['Course'], List[int]]:
+                      max_unique_classes: int, num_generations: int = 500, population_size: int = 1000,
+                      non_preferred_penalty: int = 5, seed: int = 42,
+                      progress_callback: Optional[Callable[[int], None]] = None,
+                      early_stopping_window: int = 400, min_fitness_change: float = 1e-6,
+                      unfilled_penalty: int = 50) -> Tuple[List['Instructor'], List['Course'], List[int]]:
     """
-    Run the genetic algorithm to optimize the assignment of instructors to courses with early stopping.
-
-    Args:
-        instructors (List[Instructor]): List of Instructor objects.
-        courses (List[Course]): List of Course objects.
-        max_sections (Dict[str, int]): Maximum number of sections per instructor.
-        max_unique_classes (int): Maximum number of unique classes an instructor can teach.
-        num_generations (int, optional): Number of generations for the algorithm. Defaults to 500.
-        population_size (int, optional): Size of the population. Defaults to 500.
-        non_preferred_penalty (int, optional): Penalty for non-preferred courses. Defaults to 3.
-        seed (int, optional): Seed for reproducibility. Defaults to 42.
-        progress_callback (Optional[Callable[[int], None]], optional): Callback for progress updates.
-        early_stopping_window (int, optional): Number of generations to consider for early stopping.
-        min_fitness_change (float, optional): Minimum fitness change between generations to continue running.
-
-    Returns:
-        Tuple[List[Instructor], List[Course], List[int]]: The best instructors, courses, and fitness scores over time.
+    Run the genetic algorithm with proper section tracking.
     """
-    # Set all seeds for reproducibility
     set_all_seeds(seed)
+
+    # Store original sections count
+    original_sections = {course.name: course.sections_available for course in courses}
 
     population = initialize_population(population_size, instructors, courses)
     fitness_over_time = []
 
+    # Track the best solution found so far
+    best_solution = None
+    best_fitness = float('-inf')
+
     for generation in tqdm(range(num_generations)):
-        fitness_scores = [fitness_function(chromosome, instructors, courses,
-                                            max_sections, max_unique_classes,
-                                            non_preferred_penalty) for chromosome in population]
+        fitness_scores = [
+            fitness_function(chromosome, instructors, courses,
+                           max_sections, max_unique_classes,
+                           non_preferred_penalty=non_preferred_penalty,
+                           unfilled_penalty=unfilled_penalty)
+            for chromosome in population
+        ]
 
-        fitness_scores = np.array(fitness_scores)
-        max_fitness = np.max(fitness_scores)
-        fitness_over_time.append(max_fitness)
+        # Update best solution if we found a better one
+        current_best_idx = np.argmax(fitness_scores)
+        if fitness_scores[current_best_idx] > best_fitness:
+            best_fitness = fitness_scores[current_best_idx]
+            best_solution = population[current_best_idx]
 
-        # Emit progress update
+        fitness_over_time.append(max(fitness_scores))
+
         if progress_callback:
             progress_callback(int((generation / num_generations) * 100))
 
-        # Early Stopping based on mean change in fitness
+        # Early stopping check
         if generation >= early_stopping_window:
-            # Get the last `early_stopping_window` fitness scores
             recent_fitness = fitness_over_time[-early_stopping_window:]
-            mean_fitness_change = np.mean(np.diff(recent_fitness))
-
-            if abs(mean_fitness_change) < min_fitness_change:
-                print(f"Early stopping at generation {generation}: Mean fitness change < {min_fitness_change}")
+            if abs(np.mean(np.diff(recent_fitness))) < min_fitness_change:
+                print(f"Early stopping at generation {generation}")
                 break
 
-        sorted_population = [chromosome for _, chromosome in sorted(zip(fitness_scores, population), reverse=True)]
-        top_individuals = sorted_population[:population_size // 2]
+        # Selection and creation of new population
+        sorted_indices = np.argsort(fitness_scores)[::-1]
+        top_individuals = [population[i] for i in sorted_indices[:population_size // 2]]
 
         new_population = []
         while len(new_population) < population_size:
             parent1 = random.choice(top_individuals)
             parent2 = random.choice(top_individuals)
+            # child1, child2 = crossover(parent1, parent2)
+            # child1 = mutate(child1, instructors)
+            # child2 = mutate(child2, instructors)
+
+            # crossover and mutate
             child1, child2 = crossover(parent1, parent2)
             child1 = mutate(child1, instructors)
             child2 = mutate(child2, instructors)
+
+            # # periodic repairs
+            # if generation % 50 == 0:
+            #     child1 = repair_chromosome(child1, instructors, courses, max_sections, max_unique_classes)
+            #     child2 = repair_chromosome(child2, instructors, courses, max_sections, max_unique_classes)
             new_population.extend([child1, child2])
 
         population = new_population
 
-    final_fitness_scores = [fitness_function(chromosome, instructors, courses,
-                                             max_sections, max_unique_classes) for chromosome in population]
-    best_solution = population[np.argmax(final_fitness_scores)]
+    # Use the best solution found throughout all generations
+    if best_solution is None:
+        best_solution = population[np.argmax([
+            fitness_function(chrom, instructors, courses, max_sections,
+                           max_unique_classes, non_preferred_penalty, unfilled_penalty)
+            for chrom in population
+        ])]
 
-    # Create lookup dictionaries for faster access to instructors and courses
-    course_lookup = {crs.name: crs for crs in courses}
-    instructor_lookup = {inst.name: inst for inst in instructors}
-
+    # Reset assignments
     for instructor in instructors:
         instructor.assigned_courses = []
         instructor.unique_courses = set()
 
+    for course in courses:
+        course.assigned_instructors = []
+        course.sections_available = original_sections[course.name]  # Reset to original value
+
+    # Apply the best solution
+    assignments = {}
     for instructor_section, course_section in best_solution:
-        # split sections and instructors to append to each's assignment
         instructor_name = instructor_section.split('_section_')[0]
         course_name = course_section.split('_section_')[0]
 
-        # find course and instructor
-        course = course_lookup[course_name]
-        instructor = instructor_lookup[instructor_name]
+        if course_name not in assignments:
+            assignments[course_name] = []
+        assignments[course_name].append(instructor_name)
 
-        # assign course to instructor and vice versa
-        if len(instructor.assigned_courses) < instructor.max_classes:
+        instructor = next(i for i in instructors if i.name == instructor_name)
+        course = next(c for c in courses if c.name == course_name)
+
+        if len(instructor.assigned_courses) < instructor.max_classes and course.sections_available > 0:
             instructor.assign_course(course_name, 1)
-            course.assigned_instructors.append(instructor.name)
+            if instructor_name not in course.assigned_instructors:
+                course.assigned_instructors.append(instructor_name)
+            course.sections_available -= 1
 
     return instructors, courses, fitness_over_time
 

@@ -279,89 +279,6 @@ def test_successful_course_file_load(empty_job_match_app, qtbot, mocker, test_co
     assert empty_job_match_app.selected_term == 'spring'
 
 # ------------------------- test matching --------------------
-# def test_progress_bar_updates_during_genetic_algorithm(job_match_app, qtbot, mocker):
-#     """
-#     Test the progress bar updates correctly during the genetic algorithm execution and ensure the QMessageBox is shown.
-#     """
-
-#     # Set the matching method to "Genetic Algorithm"
-#     job_match_app.method_menu.setCurrentText("Genetic Algorithm")
-
-#     # Validate that the correct method is selected
-#     assert job_match_app.method_menu.currentText() == "Genetic Algorithm"
-
-#     # Mock the QMessageBox to verify that it is called
-#     mock_msg_box = mocker.patch('PyQt5.QtWidgets.QMessageBox.information', return_value=None)
-
-#     # Trigger the run_matching process
-#     job_match_app.run_button.click()
-
-#     # Wait until the worker is created and assigned
-#     qtbot.waitUntil(lambda: hasattr(job_match_app, 'worker'), timeout=3000)
-
-#     # Simulate progress bar updates
-#     for progress_value in range(0, 101, 10):  # Simulate progress in increments of 10%
-#         job_match_app.update_progress_bar(progress_value)
-#         assert job_match_app.progress_bar.value() == progress_value
-
-#     # Emit the finished signal manually to simulate worker completion
-#     job_match_app.worker.finished.emit()
-
-#     # Ensure the progress bar reaches 100%
-#     assert job_match_app.progress_bar.value() == 100
-
-#     # Ensure the progress bar is hidden at the end of the process
-#     qtbot.waitUntil(lambda: not job_match_app.progress_bar.isVisible(), timeout=10000)
-
-#     # Verify that the QMessageBox was called
-#     mock_msg_box.assert_called_once_with(
-#         job_match_app,
-#         "Matching Results",
-#         "Matching completed successfully! \nUse the dropdown and 'Print Results' button to view results."
-#     )
-
-
-# @pytest.mark.parametrize("method", ["Bipartite Matching", "Stable Marriage", "Linear Programming", "Genetic Algorithm"])
-# def test_run_matching_with_mock_data(job_match_app, mocker, method, qtbot, caplog):
-#     """
-#     Test the matching process when valid mock data is loaded, the method is selected,
-#     and `run_matching` is called directly.
-#     """
-#     # Ensure mock data is loaded
-#     assert job_match_app.instructors is not None
-#     assert job_match_app.courses is not None
-
-#     # Set the matching method (test all 3 with parametrization)
-#     job_match_app.method_menu.setCurrentText(method)
-
-#     # Validate that the correct method is selected
-#     assert job_match_app.method_menu.currentText() == method
-
-#     # Mock the QMessageBox to verify that it is called
-#     mock_msg_box = mocker.patch('PyQt5.QtWidgets.QMessageBox.information', return_value=None)
-
-#     # Use caplog to capture log output
-#     with caplog.at_level(logging.INFO):
-#         # Call run_matching directly
-#         job_match_app.run_matching()
-
-#         qtbot.waitUntil(lambda: mock_msg_box.call_count > 0, timeout=10000)
-#         mock_msg_box.assert_called_once()
-#         assert "Matching Results" in mock_msg_box.call_args[0][1]
-
-#         # Verify course director assignments are logged
-#         log_messages = [record.message for record in caplog.records]
-
-#         assert any("Alice assigned as course director for PS211" in message for message in log_messages), "Course director Alice not assigned to PS211"
-#         assert any("Bob assigned as course director for SocSci100" in message for message in log_messages), "Course director Bob not assigned to SocSci100"
-
-#         # Check if matching results are generated
-#         assert job_match_app.matching_results is not None
-
-#     print(method)
-#     # Verify that course directors are correctly assigned
-#     ps211 = next(course for course in job_match_app.matching_results[1] if course.name == "PS211")
-#     assert "Alice" in ps211.assigned_instructors, "Course director Alice not assigned to PS211"
 
 def test_progress_bar_updates_during_genetic_algorithm(job_match_app, qtbot, mocker):
     """
@@ -427,11 +344,10 @@ def test_genetic_algorithm_shows_message_box(job_match_app, mocker, qtbot, caplo
         qtbot.waitUntil(lambda: mock_msg_box.call_count > 0, timeout=10000)
 
         # Verify that the QMessageBox was called
-        mock_msg_box.assert_called_once_with(
-            job_match_app,
-            "Matching Results",
-            "Matching completed successfully! \nUse the dropdown and 'Print Results' button to view results."
-        )
+        mock_msg_box.assert_called_once()
+        assert "Matching completed successfully!" in mock_msg_box.call_args[0][2], \
+            f"Expected 'Matching completed successfully!' in message, but got: {mock_msg_box.call_args[0][2]}"
+
 
         # Verify course director assignments are logged
         log_messages = [record.message for record in caplog.records]

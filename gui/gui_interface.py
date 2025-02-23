@@ -485,7 +485,22 @@ class JobMatchApp(QMainWindow):
 
             else:
                 self.matching_results = self.job_match_instance.solve(method=method)
-                QMessageBox.information(self, "Matching Results", "Matching completed successfully!")
+
+                inst_capacity = (
+                    sum(instructor.max_classes for instructor in self.instructors))
+                inst_load = sum(len(instructor.assigned_courses)
+                                for instructor in self.matching_results[0])
+                inst_utilization = inst_load / inst_capacity
+
+                course_capacity = sum(
+                    course.sections_available for course in self.courses)
+                course_load = course_capacity - \
+                    sum(
+                        course.sections_available for course in self.matching_results[1])
+                course_utilization = course_load / course_capacity
+
+                QMessageBox.information(self, "Matching Results",
+                                        f"""Matching completed successfully!\n{inst_load} of {inst_capacity} instructor sections used ({inst_utilization:.2%})\n{course_load} of {course_capacity} course sections used ({course_utilization:.2%})\nUse the dropdown and 'Print Results' button to view results.""")
 
         except Exception as e:
             QMessageBox.critical(self, "Error", f"An error occurred during the matching process: {str(e)}")
@@ -496,8 +511,21 @@ class JobMatchApp(QMainWindow):
 
     def store_results(self, results):
         self.matching_results = results
+
+        inst_capacity = (
+            sum(instructor.max_classes for instructor in self.instructors))
+        inst_load = sum(len(instructor.assigned_courses)
+                        for instructor in results[0])
+        inst_utilization = inst_load / inst_capacity
+
+        course_capacity = sum(
+            course.sections_available for course in self.courses)
+        course_load = course_capacity - \
+            sum(course.sections_available for course in results[1])
+        course_utilization = course_load / course_capacity
+
         QMessageBox.information(self, "Matching Results",
-                                "Matching completed successfully! \nUse the dropdown and 'Print Results' button to view results.")
+                                f"""Matching completed successfully!\n{inst_load} of {inst_capacity} instructor sections used ({inst_utilization:.2%})\n{course_load} of {course_capacity} course sections used ({course_utilization:.2%})\nUse the dropdown and 'Print Results' button to view results.""")
 
     # ----------------------------------------------------------------------
     def view_matches(self) -> None:

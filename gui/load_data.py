@@ -231,21 +231,21 @@ if __name__ == "__main__":
     wd = here()
 
     # Example file path
-    inst_file_path = wd / 'data/test/instructors_with_preferences.csv'
-    crs_file_path = wd / 'data/test/course_data.csv'
+    inst_file_path = wd / 'data/03_processed/instructors_with_course_preferences.csv'
+    crs_file_path = wd / 'data/03_processed/course_data_with_course_directors.csv'
 
     # Load and process the data
     inst_df = None
     crs_df = None
     inst_df = load_and_process_instructor_data(str(inst_file_path))
-    crs_df = load_and_process_course_data(str(crs_file_path))
+    crs_df = load_and_process_course_data(str(crs_file_path), term = "fall")
     assert inst_df is not None
     assert crs_df is not None
 
     instructors = []
     courses = []
     instructors = load_instructors(str(inst_file_path))
-    courses = load_courses(str(crs_file_path))
+    courses = load_courses(str(crs_file_path), term="fall")
     assert len(instructors) > 0
     assert len(courses) > 0
 

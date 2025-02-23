@@ -1,3 +1,4 @@
+import math
 from dataclasses import dataclass, field
 from typing import List, Set
 
@@ -10,6 +11,13 @@ class Instructor:
     preferences: List[str] = field(default_factory=list)
     assigned_courses: List[str] = field(default_factory=list, compare=False)
     unique_courses: Set[str] = field(default_factory=set, compare=False)
+
+    def __post_init__(self):
+        # Convert max_classes to int or default to 0 if NA
+        if self.max_classes is None or (isinstance(self.max_classes, float) and math.isnan(self.max_classes)):
+            self.max_classes = 0
+        else:
+            self.max_classes = int(self.max_classes)
 
     def can_teach(self, course: str) -> bool:
         """Check if the instructor can be assigned another section of the given course."""
@@ -67,15 +75,31 @@ class Course:
     assigned_instructors: List[str] = field(default_factory=list, compare=False)
     course_director: str = None
 
+    def __post_init__(self):
+        # Convert sections_available to int or default to 0 if NA
+        if self.sections_available is None or (isinstance(self.sections_available, float) and math.isnan(self.sections_available)):
+            self.sections_available = 0
+        else:
+            self.sections_available = int(self.sections_available)
+
     def print_assignments(self, skip_none=False):
         """Print the assigned instructors for the course."""
-        max_course_name_length = 10  # Adjust based on your longest course name
-        max_instructors_length = 15  # Adjust based on your longest list of instructors
+        max_course_name_length = 10  # Adjust based on longest course name
+        max_instructors_length = 15  # Adjust based on longest list of instructors
 
+        spacing = " " * max_course_name_length
         if self.assigned_instructors:
             instructors_str = ", ".join(self.assigned_instructors)
-            # Format the output with aligned columns
-            print(f"{self.name:<{max_course_name_length}} Instructors: [{instructors_str:<{max_instructors_length}}]")
+            print(
+                f"{self.name:<{max_course_name_length}} "
+                f"Instructors: [{instructors_str:<{max_instructors_length}}]"
+                + (f"\n{spacing}WARNING: {self.sections_available} unassigned sections in {self.name}!"
+                if self.sections_available > 0 else "")
+            )
         else:
             if not skip_none:
-                print(f"{self.name:<{max_course_name_length}} No instructors assigned.")
+                print(
+                    f"{self.name:<{max_course_name_length}} No instructors assigned."
+                    + (f"\n{spacing}WARNING: {self.sections_available} unassigned sections in {self.name}!"
+                    if self.sections_available > 0 else "")
+                )

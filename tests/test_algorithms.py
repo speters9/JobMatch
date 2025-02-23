@@ -26,24 +26,6 @@ def sample_courses():
     ]
 
 
-# def test_iterative_bipartite_matching_solver(sample_instructors, sample_courses):
-#     original_sections_available = {course.name: course.sections_available for course in sample_courses}
-
-#     instructor_assignments, course_assignments, graphs = bipartite_matching_solver(
-#         sample_instructors, sample_courses, instructor_weighted=False
-#     )
-
-#     # Check that no instructor exceeds their max_classes
-#     for instructor in instructor_assignments:
-#         assert len(instructor.assigned_courses) <= instructor.max_classes
-#         assert len(instructor.unique_courses) <= 2  # No more than 2 unique courses
-
-#     # Check that no course is over-assigned
-#     for course in course_assignments:
-#         assert len(course.assigned_instructors) <= original_sections_available[course.name]
-
-
-
 def test_bipartite_matching_solver(sample_instructors, sample_courses):
     # Store the original section availability for each course
     original_sections_available = {course.name: course.sections_available for course in sample_courses}

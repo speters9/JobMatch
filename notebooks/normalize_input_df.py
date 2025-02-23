@@ -9,6 +9,7 @@ Output:
 
 # %%
 import re
+import shutil
 
 import pandas as pd
 from pyprojroot.here import here
@@ -70,20 +71,16 @@ def clean_column_name(col):
 #%%
 
 # load preferences df and order by instructor importance
-pref_df = pd.read_csv(wd / "data/02_raw/course_time_preferences_raw.csv")
+pref_df = pd.read_excel(wd / "data/02_raw/course_time_preferences_raw.xlsx")
 
 # rename columns
 clean_column_names_dict = {col: clean_column_name(col) for col in pref_df.columns}
 pref_df = pref_df.rename(columns=clean_column_names_dict)
 
-# standardize class names
+# standardize names
+pref_df['name'] = pref_df['name'].str.strip().str.title()
 pref_df['core_class'] = pref_df['core_class'].replace({'PolSci ': 'PS',
                                                        'SocSci ': 'SS'}, regex=True)
-
-
-# add all known instructors to the preference df
-pref_df = pref_df.set_index('name')
-pref_df = pref_df.reindex(instructor_max.keys()).reset_index()
 
 
 # %%
@@ -109,6 +106,8 @@ for person in pref_df.itertuples():
     prefs = person.ordered_classes if person.ordered_classes else []
     if prefs:
         prefs.append(core_class) if not core_class in prefs else None
+    else:
+        prefs = [core_class]
 
     individuals[name] = {
         'name': name,
@@ -141,18 +140,26 @@ preferences_df = pd.DataFrame.from_dict(
 #%%
 # load additional instructor data
 inst_df = pd.read_csv(wd / "data/00_reference/instructor_info.csv")
+inst_df['name'] = inst_df['name'].str.strip().str.title()
+
 
 inst_df.columns = [col.lower() for col in inst_df.columns]
 pref_df.columns = [col.lower() for col in pref_df.columns]
 
 # merge preferences and additional instructor data (eg courses available to teach, degree)
-intial_merge = pref_df.merge(inst_df, on = 'name', how = 'left')
-merged_df = intial_merge.merge(preferences_df, on = 'name', how = 'left')
+# Outer join to keep both sets of data
+intial_merge = pref_df.merge(inst_df, on='name', how='outer')
+merged_df = intial_merge.merge(preferences_df, on='name', how='outer', )
 
-merged_df['pref_1'] = merged_df[['lose_gain', 'pref_1']].apply(
-    lambda x: 'PS211' if x['lose_gain'] == "+" else x['pref_1'], axis=1)
+merged_df['pref_1'] = merged_df[['lose_gain', 'time', 'pref_1']].apply(
+    lambda x: 'PS211'
+    if (x['lose_gain'] == "+" or pd.isna(x['time']))
+    else x['pref_1'], axis=1)
 
-
+# order by preceferred priority
+name_order = inst_df['name'].tolist()
+merged_df['name'] = pd.Categorical(merged_df['name'], categories=name_order, ordered=True)
+merged_df = merged_df.sort_values('name').reset_index(drop=True)
 # %%
 
 
@@ -185,6 +192,7 @@ course_prefs_list = [f'pref_{i+1}' for i in range(max_prefs)]
 class_cols = ['time', 'name', 'email', 'core_class', 'max_classes', 'degree',
               'summer_interest', *course_prefs_list, 'additional_info', 'exclude']
 class_df = merged_df[class_cols]
+class_df = class_df.loc[class_df['max_classes'] > 0].reset_index(drop=True)
 
 
 # %%
@@ -196,5 +204,10 @@ class_df.to_csv(
 
 period_df.to_csv(
     wd / "data/03_processed/instructors_with_period_preferences.csv", index=False)
+
+# ensure course data (if modified) is available for the next step
+shutil.copy(wd / "data/00_reference/course_data.csv",
+            wd / "data/03_processed/course_data_with_course_directors.csv")
+
 
 # %%

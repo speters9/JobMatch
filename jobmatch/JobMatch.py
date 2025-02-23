@@ -84,7 +84,8 @@ class JobMatch:
                 director = next((inst for inst in updated_instructors if inst.name == course.course_director), None)
                 if director:
                     # Greedily assign as many sections as possible to the director
-                    available_sections = min(director.max_classes - len(director.assigned_courses), course.sections_available)
+                    available_sections = int(min(
+                        director.max_classes - len(director.assigned_courses), course.sections_available))
 
                     if available_sections > 0:
                         # Assign the director to the course for the available sections
@@ -235,8 +236,27 @@ class JobMatch:
 
     def print_match_results(self, results):
         """Print the matching results using the Instructor's print method."""
+        # get base capacity
+
         for instructor in results:
             instructor.print_assignments()
+
+        # get actual load
+        if "Course" in str(results[0].__class__):
+            capacity = sum(course.sections_available for course in self.courses)
+            load = capacity - sum(course.sections_available for course in results)
+            utilization = load / capacity
+            print(f"Total course load: {load} out of {capacity} course sections used ({utilization:.2%})\n")
+
+        elif "Instructor" in str(results[0].__class__):
+            capacity = (sum(instructor.max_classes for instructor in self.instructors))
+            load = sum(len(instructor.assigned_courses) for instructor in results)
+            utilization = load / capacity
+            print(f"Total teaching load: {load} out of {capacity} instructor sections available ({utilization:.2%})\n")
+
+
+
+
 
 
 # %%
@@ -250,6 +270,19 @@ if __name__ == "__main__":
     course_list = load_courses(
         str(wd / "data/03_processed/course_data_with_course_directors.csv"),
         term='fall')
+
+    def get_recommended_population_size(instructors, courses):
+        total_instructor_slots = sum(inst.max_classes for inst in instructors)
+        total_course_sections = sum(
+            course.sections_available for course in courses)
+        constraint_factor = 2 if any(
+            course.course_director for course in courses) else 1
+
+        base_size = max(total_instructor_slots,
+                        total_course_sections) * constraint_factor
+        return max(500, min(base_size * 2, 2000))
+
+    print(get_recommended_population_size(instructor_list, course_list))
 
     # Create a solver factory
     factory = JobMatch(instructor_list, course_list)
@@ -285,5 +318,24 @@ if __name__ == "__main__":
     print("")
     factory.print_match_results(matches_gen[1])
     print("")
+
+    def plot_fitness_over_time(fitness_over_time: List[int]) -> None:
+        """
+        Plot the max fitness score over generations.
+
+        Args:
+            fitness_over_time (List[int]): List of fitness scores over generations.
+        """
+        import matplotlib.pyplot as plt
+        plt.figure(figsize=(10, 6))
+        plt.plot(range(len(fitness_over_time)), fitness_over_time, marker='o')
+        plt.title('Max Fitness Score Over Generations')
+        plt.xlabel('Generation')
+        plt.ylabel('Max Fitness Score')
+        plt.grid(True)
+        plt.show()
+
+    # Plot the fitness over time
+    plot_fitness_over_time(matches_gen[2])
 
 # %%

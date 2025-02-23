@@ -94,15 +94,16 @@ def test_fitness_function_with_non_preferred_penalty():
     )
 
     # Expected fitness:
-    # Alice: PS211 (core, preferred) + PS201 (core, non-preferred) (10-5)
-    # Bob: PS102 (non-preferred) (-5)
+    # Alice: PS211 (core, preferred) + PS201 (core, non-preferred) (30 + 5) [non-preferred bonus for mas] + (-5 + -5) [non-preferred penalty and non-core penalty]
+    # Bob: PS102 (non-preferred) (-5) + (-5) [non-preferred penalty]
 
     # Alice gets rewarded for PS101 (core and preferred) but penalized for PS201 (non-core and non-preferred).
     # Bob gets penalized for PS102 (non-preferred).
-    # Alice: (10 - 0) [PS101] - non_preferred_penalty [PS201]
-    # Bob: - non_preferred_penalty [PS102]
-    # Fitness = (10 - 5 - 5) = 0
-    assert fitness == 0
+    # Alice: (35 - 10) [PS101] - non_preferred_penalty [PS201]
+    # Bob: - non_preferred_penalty [PS102] (-5)
+    # Unfilled section penalty = -25
+    # Fitness = (25 - 5 - 25) = -5
+    assert fitness == -5
 
 
 def test_fitness_function_with_core_course_penalty():
@@ -135,10 +136,11 @@ def test_fitness_function_with_core_course_penalty():
     # Alice: PS101 (preferred) + PS211 (core but not preferred) -> reward for PS101, neutral for PS211
     # Bob: PS102 (non-preferred) -> penalty for non-preferred
 
-    # Alice: (10 - 0) [PS101] + (neutral) [PS211]
-    # Bob: (0) [PS102]
-    # Fitness = 10 - 0 = 10
-    assert fitness == 10
+    # Alice: (30 - 0) [PS101] + (neutral) [PS211 non-preferred penalty]
+    # Bob: (0) [PS102 non-preferred penalty]
+    # Unfilled section penalty = -25
+    # Total fitness = 30 - 25 = 5
+    assert fitness == 5
 
 
 def test_fitness_function_with_course_director_penalty():
