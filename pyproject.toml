@@ -1,45 +1,39 @@
-[tool.poetry]
+[project]
 name = "jobmatch-project"
 version = "0.1.0"
 description = "put faces in spaces"
-authors = ["speters9 <speters9@stanford.edu>"]
 readme = "README.md"
-package-mode = false
+requires-python = ">=3.11,<3.13"
 
-[tool.poetry.dependencies]
-python = ">=3.11,<3.13"
-pandas = "^2.2.2"
-scikit-learn = "^1.4.2"
-arrow = "^1.3.0"
-numpy = "^1.26.4"
-python-dotenv = "^1.0.1"
-pyprojroot = "^0.3.0"
-networkx = "^3.3"
-cookiecutter-data-science = "^2.0.0"
-rapidfuzz = "^3.9.6"
-matplotlib = "^3.9.2"
-jedi = "0.18.2"
-pulp = "^2.9.0"
-openpyxl = "^3.1.5"
-nameparser = "^1.1.3"
-sphinx = "<8.0"
-sphinx-rtd-theme = "2.0.0"
-pytest = "^8.3.2"
-pre-commit = "^3.8.0"
-isort = "^5.13.2"
-nuitka = "^2.4.7"
-pytest-qt = "^4.4.0"
-pytest-mock = "^3.14.0"
-tqdm = "^4.66.5"
-plotly = "^6.0.0"
-
-
-[[tool.poetry.source]]
-name = "PyPI"
-priority = "primary"
+dependencies = [
+	"pandas>=2.2.2",
+	"scikit-learn>=1.4.2",
+	"arrow>=1.3.0",
+	"numpy>=1.26.4",
+	"python-dotenv>=1.0.1",
+	"pyprojroot>=0.3.0",
+	"networkx>=3.3",
+	"cookiecutter-data-science>=2.0.0",
+	"rapidfuzz>=3.9.6",
+	"matplotlib>=3.9.2",
+	"jedi>=0.18.2",
+	"pulp>=2.9.0",
+	"openpyxl>=3.1.5",
+	"nameparser>=1.1.3",
+	"sphinx<8.0",
+	"sphinx-rtd-theme>=2.0.0",
+	"pytest>=8.3.2",
+	"pre-commit>=3.8.0",
+	"isort>=5.13.2",
+	"nuitka>=2.4.7",
+	"pytest-qt>=4.4.0",
+	"pytest-mock>=3.14.0",
+	"tqdm>=4.66.5",
+	"plotly>=6.0.0",
+	"notebook>=7.4.5",
+	"pyqt5>=5.15.11",
+]
 
 
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+[tool.uv]
+constraint-dependencies = ["pyqt5-qt5 <=5.15.2"]

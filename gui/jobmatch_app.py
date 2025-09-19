@@ -1,7 +1,7 @@
 """
 Run the app
 """
-
+#%%
 import logging
 import os
 import sys
@@ -15,6 +15,7 @@ from PyQt5.QtWidgets import (QApplication, QLabel, QMainWindow, QMessageBox,
 from gui import resources_rc  # image bundled for easy loading
 from gui.gui_interface import JobMatchApp
 
+#%%
 
 class AppWithSplashScreen(QMainWindow):
     def __init__(self):
@@ -108,3 +109,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# %%

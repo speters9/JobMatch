@@ -26,37 +26,51 @@ wd = here()
 
 
 #%%
+# rename period columns to standard format period_1, period_2, etc.
+def rename_period_columns(col):
+    match = re.search(r'\[(\d+)[a-z]{2} period\]', col)
+    if match:
+        num = match.group(1)
+        return f'period_{num}'
+    return col
+
 
 def clean_column_name(col):
-    """Clean column names for consistency."""
+    """Clean column names for consistency. Don't make all lowercase--classes need caps."""
+    col = col.strip()
     # Rename core class selection
-    if "core PolSci classes" in col:
+    if "core polsci classes" in col.lower():
         return "core_class"
 
     # Rename summer teaching interest
-    if "summer" in col:
+    if "summer" in col.lower():
         return "summer_interest"
 
     # Rename name and email fields
     if "enter your name" in col:
         return "name"
-    if "enter your email" in col:
+    if "enter your email" in col or "email address" in col.lower():
         return "email"
 
     # Rename timestamp
-    if "Timestamp" in col:
+    if "timestamp" in col.lower():
         return "time"
 
+    if "period" in col.lower():
+        return rename_period_columns(col)
+
     # Rename additional information and excluded classes
-    if "additional" in col:
+    if "classroom preferences" in col.lower():
+        return "classroom_preferences"
+    if "additional" in col.lower():
         return "additional_info"
-    if "do NOT want to teach" in col:
+    if "do not want to teach" in col.lower():
         return "exclude"
 
     # Rename class preferences dynamically (e.g., "Class Preferences [PolSci 211: ...]" → "PS211")
-    match = re.search(r'\[(PolSci|SocSci) (\d+[A-Z]*)', col)
+    match = re.search(r'\[(PolSci|SocSci|FAS) (\d+[A-Z]*)', col)
     if match:
-        prefix = "PS" if match.group(1) == "PolSci" else "SS"
+        prefix = "PS" if match.group(1) == "PolSci" else "SS" if match.group(1) == "SocSci" else "FAS"
         return f"{prefix}{match.group(2)}"
 
     # Rename teaching periods dynamically (e.g., "Preferred Teaching Periods [1st period]" → "period_1")
@@ -71,7 +85,7 @@ def clean_column_name(col):
 #%%
 
 # load preferences df and order by instructor importance
-pref_df = pd.read_excel(wd / "data/02_raw/course_time_preferences_raw.xlsx")
+pref_df = pd.read_excel(wd / "data/02_raw/course_time_preferences_raw_spring26.xlsx")
 
 # rename columns
 clean_column_names_dict = {col: clean_column_name(col) for col in pref_df.columns}
@@ -93,7 +107,7 @@ pref_df['core_class'] = pref_df['core_class'].replace({'PolSci ': 'PS',
 
 # get individual preferences from free response, add in core preferences last, if not included.
 # **Courses will change by semester**
-courses_available = [val for val in clean_column_names_dict.values() if "PS" in val or "SS" in val]
+courses_available = [val for val in clean_column_names_dict.values() if "PS" in val or "SS" in val or "FAS" in val]
 
 pref_df['ordered_classes'] = pref_df.apply(
     lambda row: get_ordered_preferences(row, courses=courses_available), axis=1)
@@ -139,7 +153,8 @@ preferences_df = pd.DataFrame.from_dict(
 
 #%%
 # load additional instructor data
-inst_df = pd.read_csv(wd / "data/00_reference/instructor_info.csv")
+inst_df = pd.read_csv(
+    wd / "data/00_reference/instructor_info.csv", encoding='latin1')
 inst_df['name'] = inst_df['name'].str.strip().str.title()
 
 
@@ -167,37 +182,46 @@ merged_df = merged_df.sort_values('name').reset_index(drop=True)
 
 
 
-#%%
 
+
+#%%
 
 # separate period prefernces from class preferences
 replace_dict = {
     'Preferred': 1,
     'Neutral': 0,
-    'Not Preferred': -1
+    'Not Preferred': -1,
+    'nan': 0,
 }
 
-period_cols = ['time', 'name', 'email', 'core_class', 'summer_interest',
+period_cols = ['time', 'name', 'email', 'core_class',
                'period_1', 'period_2', 'period_3', 'period_4', 'period_5', 'period_6',
                'additional_info', 'exclude'
                ]
-
+period_df = merged_df.copy()
 for col in period_cols:
     if col.startswith('period'):
-        merged_df[col] = merged_df[col].str.strip().replace(replace_dict)
-period_df = merged_df[period_cols]
+        period_df[col] = (
+            period_df[col].astype(str)
+            .str.strip()
+            .replace(replace_dict)
+            .infer_objects(copy=False)
+            .replace(['', 'nan'], 0)
+            .fillna(0)
+        )
+period_df = period_df[period_cols]
 
 
 course_prefs_list = [f'pref_{i+1}' for i in range(max_prefs)]
 class_cols = ['time', 'name', 'email', 'core_class', 'max_classes', 'degree',
-              'summer_interest', *course_prefs_list, 'additional_info', 'exclude']
+               *course_prefs_list, 'additional_info', 'exclude', 'notes']
 class_df = merged_df[class_cols]
 class_df = class_df.loc[class_df['max_classes'] > 0].reset_index(drop=True)
 
 
 # %%
 merged_df.to_csv(
-    wd / "data/03_processed/instructors_with_preferences.csv", index=False)
+    wd / "data/03_processed/instructors_with_preferences_full.csv", index=False)
 
 class_df.to_csv(
     wd / "data/03_processed/instructors_with_course_preferences.csv", index=False)

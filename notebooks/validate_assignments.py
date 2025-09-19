@@ -1,3 +1,4 @@
+#%%
 from collections import Counter
 
 import pandas as pd
@@ -6,7 +7,8 @@ from pyprojroot.here import here
 wd = here()
 pd.set_option('display.max_columns', None)
 
-cao_date = "25sep"
+cao_date = "16sep"
+term = "spring"
 # %%
 # df  = pd.read_excel(wd / "data/validate/revised_instructor_matches.xlsx")
 # instr_matches = df['Assigned Courses'].str.split(", ", expand = True)
@@ -15,18 +17,20 @@ cao_date = "25sep"
 
 # instr_matches.to_excel(wd / "data/validate/revised_instructor_matches.xlsx", index= False)
 # %%
-course_df = pd.read_csv(wd / "data/validate/course_data_with_course_directors.csv")
-inst_df = pd.read_csv(wd / "data/validate/instructors_with_preferences.csv")
+course_df = pd.read_csv(wd / "data/03_processed/course_data_with_course_directors.csv")
+inst_df = pd.read_csv(wd / "data/03_processed/instructors_with_course_preferences.csv")
 
 
 # load current working matches
-df = pd.read_excel(wd / "data/validate/revised_instructor_matches_cao{cao_date}.xlsx")
-
+df = pd.read_csv(wd / f"data/validate/instructor_matches_cao{cao_date}.csv", header=1)
+df.columns = [col.lower().strip().replace(" ", "_") for col in df.columns]
+#%%
 # create counter of current matches
-assignments = pd.melt(df[['class_1', 'class_2', 'class_3']]).dropna(subset=['value'])
+assignments = pd.melt(df[['course_1', 'course_2', 'course_3']]).dropna(subset=['value'])
 assignment_count = Counter(assignments['value'])
 
 # validate that all course sections are covered
+course_df = course_df.loc[course_df['term'] == term].copy().reset_index(drop=True)
 course_df['sections_assigned'] = course_df['course_name'].apply(lambda x: assignment_count.get(x, 0))
 course_df['covered'] = course_df.apply(lambda row: row['sections_assigned'] == row['sections_available'], axis=1)
 course_df = course_df.rename(columns = {'course_name': 'course',
@@ -45,10 +49,10 @@ if any(course_df['sections_assigned'] == 0):
 
 #%%
 
-melted_df = df.melt(id_vars=['Name'], value_vars=['class_1', 'class_2', 'class_3'],
-                    var_name='course_col', value_name='course')
+melted_df = df.melt(id_vars=['name'], value_vars=['course_1', 'course_2', 'course_3'],
+                    var_name='course_col', value_name='course_name')
 
-course_instructors_df = melted_df.groupby('course')['Name'].apply(lambda x: ', '.join(sorted(x))).reset_index()
+course_instructors_df = melted_df.groupby('course_name')['name'].apply(lambda x: ', '.join(sorted(x))).reset_index()
 course_instructors_df.columns = ['course', 'instructors']
 
 
